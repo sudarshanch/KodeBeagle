@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.indexer
+package com.kodebeagle.spark.producer
 
-import com.kodebeagle.logging.Logger
+import com.kodebeagle.indexer.Repository
+import org.apache.spark.rdd.RDD
 
-trait JavaTypeRefIndexer extends Serializable with Logger {
-  def generateTypeReferences(file: (String, String), packages: List[String],
-                             repo: Option[Repository]): Set[TypeReference]
+trait IndexProducer {
+  val TYPEREFS = "typereferences"
+
+  def createIndices(rdd: RDD[(String, (String, String))], batch: String,
+                    repoIndex: Map[String, (Option[Repository], List[String])]): Unit
 }

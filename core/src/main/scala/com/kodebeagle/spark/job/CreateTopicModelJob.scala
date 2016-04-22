@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.spark
+package com.kodebeagle.spark.job
 
 import java.util
 import java.util.ArrayList
@@ -27,7 +27,7 @@ import codesum.lm.main.Settings
 import com.kodebeagle.configuration.{KodeBeagleConfig, TopicModelConfig}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.ml.{DistributedLDAModel, LDA}
-import com.kodebeagle.spark.SparkIndexJobHelper.createSparkContext
+import com.kodebeagle.spark.util.SparkIndexJobHelper._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.eclipse.jdt.core.dom.CompilationUnit
@@ -36,7 +36,6 @@ import org.elasticsearch.spark._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
 
 object CreateTopicModelJob extends Logger {
 
@@ -278,7 +277,6 @@ object CreateTopicModelJob extends Logger {
   }
 
   def saveTopicModelTokens(updatedRepoRDD: RDD[Map[String, Object]]): Unit = {
-    import SparkIndexJobHelper._
     if (TopicModelConfig.save) {
       updatedRepoRDD.map(repoRecord => toJson(TopicModel(repoRecord))).
         saveAsTextFile(TopicModelConfig.saveToLocal + java.util.UUID.randomUUID())

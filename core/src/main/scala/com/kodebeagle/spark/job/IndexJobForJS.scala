@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.kodebeagle.spark
+package com.kodebeagle.spark.job
 
 import java.util.zip.ZipInputStream
 
@@ -22,7 +22,8 @@ import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.crawler.ZipBasicParser
 import com.kodebeagle.indexer.Repository
 import com.kodebeagle.parser.{JsParser, RepoFileNameParser}
-import com.kodebeagle.spark.SparkIndexJobHelper._
+import com.kodebeagle.spark.util.SparkIndexJobHelper
+import SparkIndexJobHelper._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -55,7 +56,8 @@ object IndexJobForJS {
 
     zipFileExtractedRDD.map { entry =>
       val (jsFiles, repo) = entry
-      (repo, JsParser.generateTypeReferences(jsFiles.toMap, repo), mapToSourceFiles(repo, jsFiles))
+      (repo, JsParser.generateTypeReferences(jsFiles.toMap, repo),
+        jsFiles.map(mapToSourceFile(repo, _)).toSet)
     }.flatMap {
       case (Some(repository), jsIndices, sourceFiles) =>
         Seq(toIndexTypeJson("typereference", "jsexternal", jsIndices, isToken = false),

@@ -123,15 +123,15 @@ public class ASTParserTest extends AbstractParseTest {
         setTestConfig();
         Map<Integer, String> actual = new HashMap<>();
         Map<Integer, String> expected = new HashMap<>();
-        expected.put(62, "x.y.Type");
-        expected.put(77, "x.y.Type");
-        expected.put(89, "org.apache.Duration");
-        expected.put(108, "org.apache.Duration");
+        expected.put(864, "x.y.Type");
+        expected.put(879, "x.y.Type");
+        expected.put(910, "org.apache.Duration");
+        expected.put(891, "org.apache.Duration");
         Map<ASTNode, String> actualTemp = resolver.getTypesAtPosition();
         for (Map.Entry<ASTNode, String> entry : actualTemp.entrySet()) {
             actual.put(entry.getKey().getStartPosition(), entry.getValue());
         }
-        Assert.assertEquals(expected, actual);
+        Assert.assertEquals(expected.entrySet(), actual.entrySet());
     }
 
     @Test
@@ -141,14 +141,14 @@ public class ASTParserTest extends AbstractParseTest {
         setTestConfig();
         Map<Integer, String> actual = new HashMap<>();
         Map<Integer, String> expected = new HashMap<>();
-        expected.put(67, "x.y.Type");
-        expected.put(98, "org.apache.Duration");
-        expected.put(150, "org.apache.Duration");
+        expected.put(869, "x.y.Type");
+        expected.put(952, "org.apache.Duration");
+        expected.put(900, "org.apache.Duration");
         Map<ASTNode, String> actualTemp = resolver.getVariableTypesAtPosition();
         for (Map.Entry<ASTNode, String> entry : actualTemp.entrySet()) {
             actual.put(entry.getKey().getStartPosition(), entry.getValue());
         }
-        Assert.assertEquals(expected, actual);
+        Assert.assertEquals(expected.entrySet(), actual.entrySet());
     }
 
     @Test

@@ -20,17 +20,19 @@ package com.kodebeagle.indexer
 import com.kodebeagle.parser.{ScalaParser, TypeInFunction}
 import org.scalastyle.{Checker, Lines}
 
+import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
 class ScalaExternalTypeRefIndexer extends ScalaTypeRefIndexer {
 
   type ExtTypeRef = ExternalTypeReference
 
-  def generateTypeReferences(files: Map[String, String],
-                                      packages: List[String],
-                                      repo: Option[Repository]): Set[TypeReference] = {
+  def generateTypeReferences(file: (String, String),
+                             packages: List[String],
+                             repo: Option[Repository]): Set[TypeReference] = {
+    val indexEntries = ListBuffer[TypeReference]()
     val repository = repo.getOrElse(Repository.invalid)
-    files.flatMap { case (fileName, fileContent) =>
+    val (fileName, fileContent) = file
       log.info(s"FileName>>> $fileName")
       val imports = extractImports(fileContent, packages.toSet)
       val mayBeLines = Try(Checker.parseLines(fileContent))
@@ -38,14 +40,12 @@ class ScalaExternalTypeRefIndexer extends ScalaTypeRefIndexer {
         val absoluteFileName = JavaFileIndexerHelper.fileNameToURL(repository, fileName)
         implicit val lines = mayBeLines.get
         val listOfListOfType = toListOfListOfType(ScalaParser.parse(fileContent, imports))
-        listOfListOfType.map(listOfType =>
+        indexEntries ++ listOfListOfType.map(listOfType =>
           ExternalTypeReference(repository.id, absoluteFileName,
             listOfType.asInstanceOf[List[ExternalType]].toSet,
             repository.stargazersCount))
-      } else {
-        Set(ExternalTypeReference(-1, "", Set[ExternalType](), -1))
       }
-    }.filter(_.types.nonEmpty).toSet
+    indexEntries.filter(_.types.nonEmpty).toSet
   }
 
   override protected def handleInternalImports(arrOfPackageClass: Array[(String, String)],

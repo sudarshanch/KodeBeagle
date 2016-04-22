@@ -24,7 +24,7 @@ import org.scalastyle.Lines
 trait ScalaTypeRefIndexer extends ScalaImportExtractor
   with ScalaIndexEntityHelper with Logger with Serializable {
 
-  protected def generateTypeReferences(files: Map[String, String],
+  protected def generateTypeReferences(file: (String, String),
                                        packages: List[String],
                                        repo: Option[Repository]): Set[TypeReference]
 

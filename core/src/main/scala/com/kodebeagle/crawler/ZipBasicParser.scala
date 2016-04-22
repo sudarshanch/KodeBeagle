@@ -33,78 +33,10 @@ import scala.util.Try
 
 object ZipBasicParser extends Logger {
 
-  private val bufferSize = 1024000 // about 1 mb
-
-  private def fileNameToPackageName(s: String) = {
-    val (_, packageN) = s.splitAt(s.indexOf("/src/"))
-    packageN.stripPrefix("/").stripSuffix("/").replace('/', '.').stripPrefix("src.main.java.")
-      .stripPrefix("src.main.scala.")
-  }
-
   private def toRepository(mayBeFileInfo: Option[RepoFileNameInfo], stats: Statistics) =
     mayBeFileInfo.map(fileInfo => Repository(fileInfo.login, fileInfo.id, fileInfo.name,
       fileInfo.fork, fileInfo.language, fileInfo.defaultBranch, fileInfo.stargazersCount,
       stats.sloc, stats.fileCount, stats.size))
-
-  def readFilesAndPackages(repoFileNameInfo: Option[RepoFileNameInfo],
-                           zipStream: ZipInputStream): (List[(String, String)],
-    List[(String, String)], List[String], Option[Repository]) = {
-    val javaFileList = mutable.ArrayBuffer[(String, String)]()
-    val scalaFileList = mutable.ArrayBuffer[(String, String)]()
-    var size: Long = 0
-    var fileCount: Int = 0
-    var sloc: Int = 0
-    var ze: Option[ZipEntry] = None
-    try {
-      do {
-        ze = Option(zipStream.getNextEntry)
-        ze.foreach { ze =>
-          if (!ze.isDirectory) {
-            val fileName = ze.getName
-            log.info(s"Reading file $fileName")
-            val fileContent = readContent(zipStream)
-            size += fileContent.length
-            fileCount += 1
-            sloc += fileContent.split("\n").size
-            if (ze.getName.endsWith(".scala")) {
-              scalaFileList += (fileName -> fileContent)
-            } else if (ze.getName.endsWith(".java")) {
-              javaFileList += (fileName -> fileContent)
-            }
-          }
-        }
-        zipStream.closeEntry()
-      } while (ze.isDefined)
-    } catch {
-      case ex: Exception => log.error("Exception reading next entry {}", ex)
-    }
-
-    val fileContentList = (javaFileList.map(_._2) ++ scalaFileList.map(_._2)).toList
-    // This is not precise, and might be effected by char-encoding.
-    val sizeInKB: Long = size / 1024
-    val statistics = Statistics(sloc, fileCount, sizeInKB)
-    (javaFileList.toList, scalaFileList.toList, extractPackages(fileContentList),
-      toRepository(repoFileNameInfo, statistics))
-  }
-
-  private def extractPackages(fileContentList: List[String]) = {
-    val allPackages = mutable.Set[String]()
-    import scala.io.Source
-    fileContentList.foreach { fileContent =>
-      val lines = Source.fromString(fileContent).getLines()
-      val PACKAGE = "package "
-      lines.find(_.trim.startsWith(PACKAGE)).foreach { line =>
-        val strippedLine = line.stripPrefix(PACKAGE).trim
-        val indexOfSemiColon = strippedLine.indexOf(";")
-        if (indexOfSemiColon == -1) { // for scala
-          allPackages += strippedLine
-        } else { // for java
-          allPackages += strippedLine.substring(0, indexOfSemiColon).trim
-        }
-      }
-    }
-    allPackages.toList
-  }
 
   def readContent(stream: ZipInputStream): String = {
     val output = new ByteArrayOutputStream()

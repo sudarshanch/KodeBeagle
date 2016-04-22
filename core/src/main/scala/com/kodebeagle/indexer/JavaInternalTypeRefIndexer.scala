@@ -30,12 +30,11 @@ class JavaInternalTypeRefIndexer extends JavaExternalTypeRefIndexer {
   }
 
 
-  override def generateTypeReferences(files: Map[String, String],
+  override def generateTypeReferences(file: (String, String),
                                       internalPackages: List[String],
                                       repo: Option[Repository]): Set[TypeReference] = {
     var indexEntries = immutable.HashSet[InternalTypeReference]()
     val r = repo.getOrElse(Repository.invalid)
-    for (file <- files) {
       val (fileName, fileContent) = file
       val lines = fileContent.split("\\r?\\n")
       val fullGithubURL = fileNameToURL(r, fileName)
@@ -54,7 +53,6 @@ class JavaInternalTypeRefIndexer extends JavaExternalTypeRefIndexer {
       } catch {
         case e: Throwable => log.error(s"Failed for $fullGithubURL", e);
       }
-    }
     indexEntries.filter(_.types.nonEmpty).toSet
   }
 

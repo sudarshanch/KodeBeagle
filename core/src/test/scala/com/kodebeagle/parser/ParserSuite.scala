@@ -276,20 +276,3 @@ class ScalaParserTest extends FunSuite {
     assert(actualCallExprAndLines == expectedCallExprAndLines)
   }
 }
-
-class ZipParserTest extends FunSuite {
-
-  import java.util.zip.ZipInputStream
-
-  import com.kodebeagle.crawler.ZipBasicParser._
-
-  test("read zip file correctly") {
-    val zipName = "repo~Cascading~cascading-dbmigrate~576623~false~Java~master~65.zip"
-    val stream: InputStream = Thread.currentThread.getContextClassLoader.getResourceAsStream(
-      zipName)
-    val repoFileNameInfo = RepoFileNameParser(zipName)
-    val (_, _, _, repository) = readFilesAndPackages(repoFileNameInfo, new ZipInputStream(stream))
-    assert(repository.get == Repository("Cascading", 576623, "cascading-dbmigrate",
-      false, "Java", "master", 65, 843, 8, 33))
-  }
-}

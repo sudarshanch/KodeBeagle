@@ -15,45 +15,92 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.spark
-
-import java.util.zip.ZipInputStream
+package com.kodebeagle.spark.util
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.crawler.ZipBasicParser
-import com.kodebeagle.indexer.{RepoFileNameInfo, Repository, SourceFile}
+import com.kodebeagle.indexer.{RepoFileNameInfo, Repository, SourceFile, Statistics}
 import com.kodebeagle.parser.RepoFileNameParser
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.io.Source
 import scala.util.Try
 
 object SparkIndexJobHelper {
 
-  def mapToSourceFiles(repo: Option[Repository],
-                       map: List[(String, String)]): Set[SourceFile] = {
+  def mapToSourceFile(repo: Option[Repository],
+                      file: (String, String)): SourceFile = {
     val repo2 = repo.getOrElse(Repository.invalid)
     import com.kodebeagle.indexer.JavaFileIndexerHelper._
-
-    map.map(x => SourceFile(repo2.id, fileNameToURL(repo2, x._1), x._2)).toSet
+    SourceFile(repo2.id, fileNameToURL(repo2, file._1), file._2)
   }
 
-  def createSparkContext(conf: SparkConf): SparkContext = new SparkContext(conf)
+  def createSparkContext(conf: SparkConf): SparkContext = {
+    val sc = new SparkContext(conf)
+    sc.hadoopConfiguration.set("mapreduce.input.fileinputformat.input.dir.recursive", "true")
+    sc
+  }
 
-  def makeZipFileExtractedRDD(sc: SparkContext): RDD[(List[(String, String)],
-    List[(String, String)], Option[Repository], List[String])] = {
-    val zipFileNameRDD = sc.binaryFiles(KodeBeagleConfig.githubDir).map {
-      case (zipFile, stream) =>
-        (zipFile.stripPrefix("file:").stripPrefix("hdfs:"), stream)
+  private def extractRepoDirName(x: String) = x.substring(0, x.indexOf('/'))
+
+
+  private def getStats(fContent: String) = {
+    val lines = Source.fromString(fContent).getLines()
+    val sloc = lines.size
+    val count = 1
+    val pkg = List(extractPackage(lines))
+    val size = fContent.length
+    (sloc, count, pkg, size)
+  }
+
+  def extractPackage(lines: Iterator[String]): String = {
+    val PACKAGE = "package "
+    var pkg = ""
+    lines.find(_.trim.startsWith(PACKAGE)).foreach { line =>
+      val strippedLine = line.stripPrefix(PACKAGE).trim
+      val indexOfSemiColon = strippedLine.indexOf(";")
+      if (indexOfSemiColon == -1) {
+        pkg = strippedLine
+      } else {
+        pkg = strippedLine.substring(0, indexOfSemiColon).trim
+      }
     }
-    val zipFileExtractedRDD = zipFileNameRDD.map { case (zipFileName, stream) =>
-      val repoInfo: Option[RepoFileNameInfo] = RepoFileNameParser(zipFileName)
-      val (javaFilesMap, scalaFilesMap, packages, repository) =
-        ZipBasicParser.readFilesAndPackages(repoInfo,
-          new ZipInputStream(stream.open()))
-      (javaFilesMap, scalaFilesMap, repository, packages)
-    }
-    zipFileExtractedRDD
+    pkg
+  }
+
+  private def toRepository(mayBeFileInfo: Option[RepoFileNameInfo], stats: Statistics) =
+    mayBeFileInfo.map(fileInfo => Repository(fileInfo.login, fileInfo.id, fileInfo.name,
+      fileInfo.fork, fileInfo.language, fileInfo.defaultBranch, fileInfo.stargazersCount,
+      stats.sloc, stats.fileCount, stats.size))
+
+ private def toStatistics(sloc: Int, count: Int, size: Int) = Statistics(sloc, count, size)
+
+  def makeRDD(sc: SparkContext, batch: String): RDD[(String, (String, String))] = {
+    val inputDir = s"${KodeBeagleConfig.githubDir}/$batch/"
+    val rdd = sc.wholeTextFiles(s"$inputDir*")
+      .map { case (fName, fContent) =>
+        val cleanedFName = fName.stripPrefix("file:").stripPrefix("hdfs:").stripPrefix(inputDir)
+        (cleanedFName, fContent) }
+      .map { case (fName, fContent) => (extractRepoDirName(fName), (fName, fContent)) }
+      .persist(StorageLevel.MEMORY_AND_DISK)
+    rdd
+  }
+
+
+  def createRepoIndex(rdd: RDD[(String, (String, String))],
+                      batch: String): Map[String, (Option[Repository], List[String])]  = {
+    val aggregateRDD = rdd
+      .map { case (repoDirName, (_, fContent)) => (repoDirName, getStats(fContent)) }
+      .reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2, x._3 ++ y._3, x._4 + y._4))
+      .map { case (repoDirName, (tSloc, tCount, tPkgs, tSize)) =>
+        (repoDirName, (toRepository(RepoFileNameParser(repoDirName),
+          toStatistics(tSloc, tCount, tSize)), tPkgs))
+      }.cache()
+    aggregateRDD.map(_._2._1.getOrElse(Repository.invalid)).filter(x => x != Repository.invalid)
+      .flatMap(repo => Seq(toJson(repo, isToken = false)))
+      .saveAsTextFile(KodeBeagleConfig.sparkIndexOutput + batch + "repoIndex")
+    aggregateRDD.collectAsMap().toMap
   }
 
   /**

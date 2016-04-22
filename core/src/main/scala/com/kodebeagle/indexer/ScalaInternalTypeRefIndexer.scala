@@ -19,6 +19,8 @@ package com.kodebeagle.indexer
 
 import com.kodebeagle.parser.{ScalaParser, TypeInFunction}
 import org.scalastyle.{Checker, Lines}
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 import scala.util.Try
 import scalariform.utils.Range
@@ -32,26 +34,25 @@ class ScalaInternalTypeRefIndexer extends ScalaTypeRefIndexer {
     arrPackageImport.filter { case (left, right) => packages.contains(left) }.toSet
   }
 
-  def generateTypeReferences(files: Map[String, String],
-                                      packages: List[String],
-                                      repo: Option[Repository]): Set[TypeReference] = {
+  def generateTypeReferences(file: (String, String),
+                             packages: List[String],
+                             repo: Option[Repository]): Set[TypeReference] = {
+    val indexEntries = ListBuffer[TypeReference]()
     val repository = repo.getOrElse(Repository.invalid)
-    files.flatMap { case (fileName, fileContent) =>
-      log.info(s"FileName>>> $fileName")
-      val imports = extractImports(fileContent, packages.toSet)
-      val mayBeLines = Try(Checker.parseLines(fileContent))
-      if (mayBeLines.isSuccess) {
-        val absoluteFileName = JavaFileIndexerHelper.fileNameToURL(repository, fileName)
-        implicit val lines = mayBeLines.get
-        val listOfListOfType = toListOfListOfType(ScalaParser.parse(fileContent, imports))
-        listOfListOfType.map(listOfType =>
-          InternalTypeReference(repository.id, absoluteFileName,
-            listOfType.asInstanceOf[List[InternalType]].toSet,
-            repository.stargazersCount))
-      } else {
-        Set(InternalTypeReference(-1, "", Set[InternalType](), -1))
-      }
-    }.filter(_.types.nonEmpty).toSet
+    val (fileName, fileContent) = file
+    log.info(s"FileName>>> $fileName")
+    val imports = extractImports(fileContent, packages.toSet)
+    val mayBeLines = Try(Checker.parseLines(fileContent))
+    if (mayBeLines.isSuccess) {
+      val absoluteFileName = JavaFileIndexerHelper.fileNameToURL(repository, fileName)
+      implicit val lines = mayBeLines.get
+      val listOfListOfType = toListOfListOfType(ScalaParser.parse(fileContent, imports))
+      indexEntries ++= listOfListOfType.map(listOfType =>
+        InternalTypeReference(repository.id, absoluteFileName,
+          listOfType.asInstanceOf[List[InternalType]].toSet,
+          repository.stargazersCount))
+    }
+    indexEntries.filter(_.types.nonEmpty).toSet
   }
 
   override protected def toLine(range: Range)(implicit pLines: Lines): Option[InternalLine] = {

@@ -34,8 +34,8 @@ class JavaASTBasedIndexerForMethodsSuite extends FunSuite with BeforeAndAfterAll
 
   test("Parse a file and verify method tokens") {
     val indexer = new JavaExternalTypeRefIndexer
-    val methodTokens = indexer.generateTypeReferences(Map("sample-master/Sample.java" -> writer
-      .toString), List(), Some(Repository.invalid))
+    val methodTokens = indexer.generateTypeReferences("sample-master/Sample.java" -> writer
+      .toString, List(), Some(Repository.invalid))
 
     assert(methodTokens.size === 7)
 

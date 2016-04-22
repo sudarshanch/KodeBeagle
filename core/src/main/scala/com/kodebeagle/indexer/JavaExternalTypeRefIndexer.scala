@@ -50,11 +50,10 @@ class JavaExternalTypeRefIndexer extends JavaTypeRefIndexer {
     iterOfPackageAndImport.filterNot { case (left, right) => packages.contains(left) }.toSet
   }
 
-  def generateTypeReferences(files: Map[String, String], excludePackages: List[String],
+  def generateTypeReferences(file: (String, String), excludePackages: List[String],
                              repo: Option[Repository]): Set[TypeReference] = {
     var indexEntries = immutable.HashSet[ExternalTypeReference]()
     val r = repo.getOrElse(Repository.invalid)
-    for (file <- files) {
       val (fileName, fileContent) = file
       val fullGithubURL = fileNameToURL(r, fileName)
       try {
@@ -70,7 +69,6 @@ class JavaExternalTypeRefIndexer extends JavaTypeRefIndexer {
       } catch {
         case e: Throwable => log.error(s"Failed for $fullGithubURL", e);
       }
-    }
     indexEntries.filter(_.types.nonEmpty).toSet
   }
 }
