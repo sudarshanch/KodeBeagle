@@ -22,35 +22,9 @@ import java.util
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import com.kodebeagle.javaparser.{JavaASTParser, MethodInvocationResolver, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
-import org.apache.spark.broadcast.Broadcast
 import org.eclipse.jdt.core.dom.{ASTNode, CompilationUnit}
 
 import scala.collection.mutable
-
-case class RepoSource(repoId: Long, fileName: String, fileContent: String)
-
-case class TypeDeclaration(fileType: String, loc: String)
-
-case class ExternalRef(id: Int, fqt: String)
-
-case class VarTypeLocation(loc: String, id: Int)
-
-case class MethodTypeLocation(loc: String, id: Int, method: String, argTypes: List[String])
-
-case class MethodDefinition(loc: String, method: String, argTypes: List[String])
-
-case class InternalRef(childLine: String, parentLine: String)
-
-case class SuperTypes(superClass: String, interfaces: List[String])
-
-case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
-                        fileTypes: util.List[TypeDeclaration],
-                        externalRefList: List[ExternalRef],
-                        typeLocationList: List[VarTypeLocation],
-                        methodTypeLocation: List[MethodTypeLocation],
-                        methodDefinitionList: List[MethodDefinition],
-                        internalRefList: List[InternalRef])
-
 
 object FileMetaDataIndexer extends Logger {
 
@@ -64,31 +38,37 @@ object FileMetaDataIndexer extends Logger {
       val unit: CompilationUnit = cu.asInstanceOf[CompilationUnit]
       val resolver: SingleClassBindingResolver = new SingleClassBindingResolver(unit)
       resolver.resolve
-      val typesAtPos = resolver.getTypesAtPosition
-      // External reference
-      val idVsExternalRefs: Map[String, Int] = getExternalRefs(resolver, typesAtPos)
-      val externalRefsList = idVsExternalRefs.map(x => ExternalRef(x._2, x._1))
-      // typeLocationList for variables
-      val typeLocationVarList = getTypeLocationVarList(unit, typesAtPos, idVsExternalRefs)
-      // importLocationList for imports
-      val importLocationList = getImportLocationList(unit, resolver, idVsExternalRefs)
-      // typelocation for method call expression
-      val typeLocationMethodList =
-        getTypeLocationMethodList(unit, resolver.getMethodInvoks, idVsExternalRefs)
-      // method definition in that class
-      val methodDefinitionList = getMethodDefinitionList(unit, resolver)
-      // internal references
-      val internalRefsList = getInternalRefs(unit, resolver)
-      val fileTypes = getFileTypes(unit, resolver)
-      val superTypes = SuperTypes(resolver.getSuperType, resolver.getInterfaces.toList)
-      indexEntry += FileMetaData(source.repoId, source.fileName, superTypes, fileTypes.toList,
-        externalRefsList.toList, typeLocationVarList.toList ++ importLocationList.toList,
-        typeLocationMethodList.toList, methodDefinitionList.toList, internalRefsList.toList)
+      indexEntry += generateMetaData(resolver, unit, source.repoId, source.fileName)
     } else {
       log.info("Unable to create AST for file " + source.fileName +
         "and file contents are \n" + source.fileContent)
     }
     indexEntry.toSet
+  }
+
+  // TODO: This class needs to be looked at closely and optimized.
+  def generateMetaData(resolver: SingleClassBindingResolver,
+                       unit: CompilationUnit, repoId: Int, fileName: String): FileMetaData = {
+    val typesAtPos = resolver.getTypesAtPosition
+    // External reference
+    val idVsExternalRefs: Map[String, Int] = getExternalRefs(resolver, typesAtPos)
+    val externalRefsList = idVsExternalRefs.map(x => ExternalRef(x._2, x._1))
+    // typeLocationList for variables
+    val typeLocationVarList = getTypeLocationVarList(unit, typesAtPos, idVsExternalRefs)
+    // importLocationList for imports
+    val importLocationList = getImportLocationList(unit, resolver, idVsExternalRefs)
+    // typelocation for method call expression
+    val typeLocationMethodList =
+      getTypeLocationMethodList(unit, resolver.getMethodInvoks, idVsExternalRefs)
+    // method definition in that class
+    val methodDefinitionList = getMethodDefinitionList(unit, resolver)
+    // internal references
+    val internalRefsList = getInternalRefs(unit, resolver)
+    val fileTypes = getFileTypes(unit, resolver)
+    val superTypes = SuperTypes(resolver.getSuperType, resolver.getInterfaces.toList)
+    FileMetaData(repoId, fileName, superTypes, fileTypes.toList,
+      externalRefsList.toList, typeLocationVarList.toList ++ importLocationList.toList,
+      typeLocationMethodList.toList, methodDefinitionList.toList, internalRefsList.toList)
   }
 
   def getMethodDefinitionList(unit: CompilationUnit, resolver: SingleClassBindingResolver):

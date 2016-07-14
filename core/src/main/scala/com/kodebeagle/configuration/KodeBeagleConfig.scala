@@ -32,6 +32,10 @@ object KodeBeagleConfig extends ConfigReader{
   private[kodebeagle] val sparkSourceOutput = get("kodebeagle.spark.source.outputDir").get
   private[kodebeagle] val sparkMethodsOutput = get("kodebeagle.spark.method.outputDir").get
 
+  private[kodebeagle] val repoCloneDir: String = get("kodebeagle.repo.cloneDir").get
+  private[kodebeagle] val repoUpdateFreqDays: Int = get("kodebeagle.repo.update.days").get.toInt
+  private[kodebeagle] val remoteUrlPrefix: String = get("kodebeagle.repo.remoteUrlPrefix").get
+
   private[kodebeagle] val linesOfContext = get("kodebeagle.indexing.linesOfContext").get
   // This is required to use GithubAPIHelper
   private[kodebeagle] val githubTokens: Array[String] =

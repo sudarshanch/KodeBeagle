@@ -17,6 +17,8 @@
 
 package com.kodebeagle.indexer
 
+import java.util
+
 import scala.collection.immutable
 
 trait Line {
@@ -90,4 +92,33 @@ object Repository {
   def invalid: Repository =
     Repository("n-a", -1, "n-a", fork = false, "Java", "n-a", 0, -1, -1, -1)
 }
+
+/* File Metadata related entities */
+case class RepoSource(repoId: Long, fileName: String, fileContent: String)
+
+case class TypeDeclaration(fileType: String, loc: String)
+
+case class ExternalRef(id: Int, fqt: String)
+
+case class VarTypeLocation(loc: String, id: Int)
+
+case class MethodTypeLocation(loc: String, id: Int, method: String, argTypes: List[String])
+
+case class MethodDefinition(loc: String, method: String, argTypes: List[String])
+
+case class InternalRef(childLine: String, parentLine: String)
+
+case class SuperTypes(superClass: String, interfaces: List[String])
+
+case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
+                        fileTypes: util.List[TypeDeclaration],
+                        externalRefList: List[ExternalRef],
+                        typeLocationList: List[VarTypeLocation],
+                        methodTypeLocation: List[MethodTypeLocation],
+                        methodDefinitionList: List[MethodDefinition],
+                        internalRefList: List[InternalRef])
+
+
+
+
 
