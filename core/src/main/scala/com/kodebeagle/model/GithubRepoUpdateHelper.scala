@@ -21,15 +21,17 @@ import java.io.File
 import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.logging.Logger
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{Path, FileSystem}
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import scala.collection.mutable.ListBuffer
+import scala.sys.process.ProcessLogger
 
 class GithubRepoUpdateHelper(val configuration: Configuration,
                              val repoPath: String) extends Logger {
 
-  import sys.process._
   import GithubRepoUpdateHelper._
+
+  import sys.process._
 
   // TODO: Get these from configuration?
   val remoteUrlPrefix = "https://github.com/"
@@ -58,13 +60,18 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
     val exists = fs.exists(fsRepoPath)
     var shouldUpdate = false
     if (exists) {
+      log.info(s"Repo exists at ${fsRepoPath.toString}")
       val filestatus = fs.getFileStatus(new Path(join(File.separator,
         fsRepoPath.toString, gitDBName)))
       val elapsedTime = System.currentTimeMillis - filestatus.getModificationTime
       if (elapsedTime / (1000 * 60 * 60 * 24) > KodeBeagleConfig.repoUpdateFreqDays) {
+        log.info(s"Repo exists at ${fsRepoPath.toString} but out of date; will clone")
         shouldUpdate = true
+      } else {
+        log.info(s"Repo up-t-date at ${fsRepoPath.toString}; will NOT clone")
       }
     } else {
+      log.info(s"Repo does not exists at ${fsRepoPath.toString}; will clone")
       shouldUpdate = true
     }
     shouldUpdate
@@ -89,10 +96,23 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
         s"""cd ${localRepoPath}""",
         s"""tar -zcf git.tar.gz ${repoName}/.git/"""))
 
-    log.debug("Clean clone command is : " + cleanClone)
-    log.debug("Tar git command is : " + tarGitCmd)
+    log.info(s"clonig repo ${repoName}")
+    log.info("Clean clone command is : " + cleanClone)
+    log.info("Tar git command is : " + tarGitCmd)
 
-    cleanClone.!!
+    val emptyDetector = new EmptyRepoCloneDetector()
+    val rtrnCode = cleanClone.!(emptyDetector)
+
+    if (rtrnCode != 0) {
+      log.warn(s"${repoPath} does not seem to exist any more. It will be skipped.")
+      throw new IllegalStateException("Repo metadata was present but repo no longer exists.")
+    }
+
+    if(emptyDetector.isEmpty){
+      log.warn(s"${repoPath} seems to be empty. It will be skipped.")
+      throw new IllegalStateException("Repo metadata was present but repo was empty.")
+    }
+
     tarGitCmd.!!
 
     val pathsToCopy = Array(new Path(s"""${localRepoPath}/git.tar.gz"""))
@@ -112,20 +132,17 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
   def downloadLocalFromDfs(): List[String] = {
     import sys.process._
 
+    log.info(s"Downloading repo to ${localRepoPath}")
     val files = fs.listStatus(fsRepoPath);
     val fileBuff = ListBuffer[String]()
     val localRepoCrtOp = s"""mkdir -p ${localRepoPath}""".!!
-    log.info(localRepoCrtOp)
     for (f <- files) {
       val fileName = f.getPath().getName
       val localFilePath: String = join(File.separator, localRepoPath, fileName)
       fs.copyToLocalFile(false, f.getPath, new Path(localFilePath))
       if (f.getPath().getName.endsWith("gz")) {
         val output = s"""tar -xzf ${localFilePath} -C ${localRepoPath}""".!!
-        log.info(output)
-
         val delOut = s"""rm $localFilePath""".!!
-        log.info(delOut)
       }
 
       fileBuff += join(File.separator,
@@ -154,6 +171,17 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
 
   }
 
+}
+
+class EmptyRepoCloneDetector extends ProcessLogger {
+
+  var isEmpty = false
+
+  override def out(s: => String): Unit = {if (s.contains("empty repository")) isEmpty = true}
+
+  override def err(s: => String): Unit = {if (s.contains("empty repository")) isEmpty = true}
+
+  override def buffer[T](f: => T): T = f
 }
 
 object GithubRepoUpdateHelper {

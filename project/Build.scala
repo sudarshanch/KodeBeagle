@@ -157,7 +157,6 @@ object Dependencies {
   val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "3.7.0.201502260915-r"
   val jgitProvided = jgit % "provided"
 
-  val javaparser = "com.github.javaparser" % "javaparser-core" % "2.0.0"
   val scalastyle = "org.scalastyle" %% "scalastyle" % "0.7.0"
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val slf4j = "org.slf4j" % "slf4j-log4j12" % "1.7.10"
@@ -192,12 +191,12 @@ object Dependencies {
   }
 
   val base = Seq(akka, httpClient, scalastyle, scalaTest, slf4j, json4s, config, json4sJackson, commonsIO,
-    guava, compress, junit, rhino, javaparser)
+    guava, compress, junit, rhino, jgit)
 
-  val kodebeagle = base ++ EclipseDeps.allDeps ++ spark ++ Seq(jgit, esSpark)
+  val kodebeagle = base ++ EclipseDeps.allDeps ++ spark ++ Seq(esSpark)
 
   val kodebeagleProvided =
-    base ++ EclipseDeps.allDepsInTransitive ++ sparkProvided ++ Seq(jgitProvided, esSparkExcluded)
+    base ++ EclipseDeps.allDepsInTransitive ++ sparkProvided ++ Seq(esSparkExcluded)
 
   val ideaPluginTest = Seq(scalaTest, commonsIO)
   val ideaPlugin = Seq()

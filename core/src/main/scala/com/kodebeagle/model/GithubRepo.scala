@@ -31,6 +31,7 @@ import org.eclipse.jgit.treewalk.TreeWalk
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 /**
   * This is an abstraction over a github repo that is to be analyzed.
@@ -41,31 +42,27 @@ import scala.io.Source
   * However, if update is set to `true` then it will first clone the repo
   * from Github, replace the existing repo on Hdfs and read from that repo.
   *
-  * @param repoPath -- repo location e.g. "apache/spark"
   */
-class GithubRepo(val configuration: Configuration, val repoPath: String)
+class GithubRepo protected()
   extends Repo with Logger with LazyLoadSupport {
 
   private var _files: Option[List[GithubFileInfo]] = None
   private var _stats: Option[RepoStatistics] = None
   private var _languages: Option[Set[String]] = None
-  protected var _repoGitFiles: Option[List[String]]=None
+  protected var _repoGitFiles: Option[List[String]] = None
+  var repoInfo: Option[GithubRepoInfo] = None
 
-  // TODO: How to get this? Two options:
-  // 1. Read directly from from Github using repo path.
-  //    (But this is likely to hit the github api rate limit)
-  // 2. Keep it stored upfront and pass it along in constructor.
-  var repoInfo: Option[GithubRepoInfo] =
-    Option(GithubRepoInfo("default-login",0,"default-name","default-language","default-branch",0))
 
-  init()
+  // init()
 
-  def init(): Unit = {
-    val repoUpdateHelper = new GithubRepoUpdateHelper(configuration, repoPath)
+  private def init(configuration: Configuration, githubRepoInfo: GithubRepoInfo): GithubRepo = {
+    val repoUpdateHelper = new GithubRepoUpdateHelper(configuration, githubRepoInfo.fullName)
     if (repoUpdateHelper.shouldUpdate()) {
       repoUpdateHelper.update()
     }
     _repoGitFiles = Option(repoUpdateHelper.downloadLocalFromDfs())
+    repoInfo = Option(githubRepoInfo)
+    this
   }
 
   override def files: List[GithubFileInfo] = {
@@ -90,7 +87,7 @@ class GithubRepo(val configuration: Configuration, val repoPath: String)
   }
 
   def repository: Repository = {
-    val repoPath: String =_repoGitFiles.get(0)
+    val repoPath: String = _repoGitFiles.get(0)
     val builder: FileRepositoryBuilder = new FileRepositoryBuilder
     builder.setGitDir(new File(s"$repoPath/.git")).readEnvironment.findGitDir.build
   }
@@ -130,41 +127,62 @@ class GithubRepo(val configuration: Configuration, val repoPath: String)
       mutable.ArrayBuffer[GithubFileInfo]()
 
 
-    val head: Ref = gitRepo.getRef("HEAD")
+    val fileListOpt = Try {
+      val head: Ref = gitRepo.getRef("HEAD")
 
-    // a RevWalk allows to walk over commits based on some filtering that is
-    // defined
-    val walk: RevWalk = new RevWalk(gitRepo)
+      // a RevWalk allows to walk over commits based on some filtering that is
+      // defined
+      val walk: RevWalk = new RevWalk(gitRepo)
 
-    val commit: RevCommit = walk.parseCommit(head.getObjectId)
-    val tree: RevTree = commit.getTree
+      val commit: RevCommit = walk.parseCommit(head.getObjectId)
+      val tree: RevTree = commit.getTree
 
-    // Now use a TreeWalk to iterate over all files in the Tree recursively
-    // We can set Filters to narrow down the results if needed
-    val treeWalk: TreeWalk = new TreeWalk(gitRepo)
-    treeWalk.addTree(tree)
-    treeWalk.setRecursive(true)
-    while (treeWalk.next) {
-      val githubFileInfo = new GithubFileInfo(treeWalk.getPathString,
-        treeWalk.getObjectId(0), gitRepo,
-        repoInfo.get)
-      gitHubFilesInfo.append(githubFileInfo)
+      // Now use a TreeWalk to iterate over all files in the Tree recursively
+      // We can set Filters to narrow down the results if needed
+      val treeWalk: TreeWalk = new TreeWalk(gitRepo)
+      treeWalk.addTree(tree)
+      treeWalk.setRecursive(true)
+      while (treeWalk.next) {
+        val githubFileInfo = new GithubFileInfo(treeWalk.getPathString,
+          treeWalk.getObjectId(0), gitRepo,
+          repoInfo.get)
+        gitHubFilesInfo.append(githubFileInfo)
+      }
+
+      gitHubFilesInfo.toList
     }
 
-    gitHubFilesInfo.toList
+    fileListOpt match {
+      case Success(list: List[GithubFileInfo]) => list
+      case Failure(e: Throwable) => {
+        log.warn(
+          s"""Unable to read file list from repo ${repoInfo};
+             | empty file list will be returned.
+             | (This is possibly due to repo clone being empty)""".stripMargin,
+          e)
+        List.empty
+      }
+    }
+
   }
 
 }
 
 object GithubRepo {
 
-  case class GithubRepoInfo(login: String, id: Int, name: String, language: String,
-                            defaultBranch: String, stargazersCount: Int)
+  case class GithubRepoInfo(id: Long, login: String, name: String, fullName: String,
+                            isPrivate: Boolean, isFork: Boolean, size: Long, watchersCount: Long,
+                            language: String, forksCount: Long, subscribersCount: Long,
+                            defaultBranch: String, stargazersCount: Long)
+
+  def apply(configuration: Configuration, githubRepoInfo: GithubRepoInfo): Option[GithubRepo] = {
+    Try(new GithubRepo().init(configuration, githubRepoInfo)).toOption
+  }
 
 }
 
 class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repository,
-                     githubRepoInfo: GithubRepoInfo) extends BaseFileInfo(filePath) {
+                     val githubRepoInfo: GithubRepoInfo) extends BaseFileInfo(filePath) {
 
   override def extractFileName(): String = {
     val p: Path = Paths.get(filePath)
@@ -180,7 +198,7 @@ class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repositor
     val fileType: Array[String] = filePath.split("\\.")
     if (fileType.length > 1) {
       fileType(1)
-    }else {
+    } else {
       UNKNOWN_LANG
     }
   }
@@ -193,7 +211,7 @@ class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repositor
     s"${githubRepoInfo.login}/${githubRepoInfo.name}/blob/${githubRepoInfo.defaultBranch}/"
   }
 
-  override def repoId: Int = {
+  override def repoId: Long = {
     githubRepoInfo.id
   }
 }

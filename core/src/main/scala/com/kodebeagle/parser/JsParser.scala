@@ -17,8 +17,9 @@
 
 package com.kodebeagle.parser
 
-import com.kodebeagle.indexer.{Repository, ExternalLine, ExternalType, ExternalTypeReference, JavaFileIndexerHelper, Property, RepoFileNameInfo}
+import com.kodebeagle.indexer.{ExternalLine, ExternalType, ExternalTypeReference, Property, Repository}
 import com.kodebeagle.logging.Logger
+import com.kodebeagle.spark.util.SparkIndexJobHelper
 import org.mozilla.javascript.ast.{AstNode, AstRoot, ErrorCollector, FunctionCall, NodeVisitor, PropertyGet, VariableInitializer}
 import org.mozilla.javascript.{CompilerEnvirons, IRFactory}
 
@@ -150,7 +151,7 @@ object JsParser extends Logger {
       val mayBeAstRoot = Try(irFactory.parse(tupleOfNameContent._2, "", 1))
       if (mayBeAstRoot.isSuccess) {
         val types = getTypes(mayBeAstRoot.get).toSet
-        val gitFileName = JavaFileIndexerHelper.fileNameToURL(repo, tupleOfNameContent._1)
+        val gitFileName = SparkIndexJobHelper.fileNameToURL(repo, tupleOfNameContent._1)
         ExternalTypeReference(repo.id, gitFileName, types, repo.stargazersCount)
       } else {
         ExternalTypeReference(-1, "", Set[ExternalType](), -1)

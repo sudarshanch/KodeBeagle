@@ -39,7 +39,7 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll {
     s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo/GitRepoTest-git.tar.gz
         |-C ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo""".stripMargin.!!
 
-    val githubRepo = new MockedGithubRepo(new Configuration, "testlogin/testgitrepo")
+    val githubRepo = new MockedGithubRepo().init(new Configuration, "testlogin/testgitrepo")
     testJavaRepo = Option(new JavaRepo(githubRepo))
   }
 

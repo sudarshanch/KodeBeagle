@@ -17,13 +17,17 @@
 
 package com.kodebeagle.model
 
+import java.util
+
 import com.kodebeagle.indexer._
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import com.kodebeagle.javaparser.{JavaASTParser, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
 import org.eclipse.jdt.core.dom.CompilationUnit
 
-class JavaRepo(baseRepo: GithubRepo) extends Repo with Logger
+import scala.util.Try
+
+class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
   with LazyLoadSupport {
 
   // TODO: This constants needs to go somewhere else
@@ -44,7 +48,7 @@ class JavaRepo(baseRepo: GithubRepo) extends Repo with Logger
   override def languages: Set[String] = baseRepo.languages
 }
 
-class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
+class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSupport with Logger {
 
   assert(baseFile.fileName.endsWith(".java"),
     s"A java file is expected. Actual file: ${baseFile.fileName}")
@@ -54,6 +58,8 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
   private var _fileMetaData: Option[FileMetaData] = None
 
   private var _imports: Option[Set[String]] = None
+
+  private var _repoPath: Option[String] = None
 
   def searchableRefs: Set[ExternalTypeReference] = {
     getOrCompute(_searchableRefs, () => {
@@ -76,6 +82,13 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
     })
   }
 
+  def repoPath: String = {
+    getOrCompute(_repoPath, () => {
+      parse()
+      _repoPath.get
+    })
+  }
+
   override def fileName: String = baseFile.fileName
 
   override def sloc: Int = baseFile.sloc
@@ -84,7 +97,7 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
 
   override def language: String = baseFile.language
 
-  override def repoId: Int = baseFile.repoId
+  override def repoId: Long = baseFile.repoId
 
   override def repoFileLocation: String = baseFile.repoFileLocation
 
@@ -102,24 +115,41 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
     import scala.collection.JavaConversions._
 
     val parser: JavaASTParser = new JavaASTParser(true)
-    val cu: CompilationUnit = parser.getAST(fileContent, ParseType.COMPILATION_UNIT)
-      .asInstanceOf[CompilationUnit]
-    val scbr: SingleClassBindingResolver = new SingleClassBindingResolver(cu)
-    scbr.resolve()
+    _repoPath= Option(s"${baseFile.githubRepoInfo.login}/${baseFile.githubRepoInfo.name}")
 
-    val nodeVsType = scbr.getTypesAtPosition
-    // TODO: Get this properly
-    val score = 0
-    val externalTypeRefs = extractExtTypeRefs(scbr, cu, score)
-    val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu, repoId, fileName)
+    // The file may not even be well formed, so the parser may throw an
+    // IllegalArgumentException. Need to handle such a case.
+    val cu: Option[CompilationUnit] = Try {
+      parser.getAST(fileContent, ParseType.COMPILATION_UNIT)
+        .asInstanceOf[CompilationUnit]
+    }.toOption
 
-    _imports = Option(scbr.getImports.toSet)
-    _searchableRefs = Option(externalTypeRefs)
-    _fileMetaData = Option(fileMetaData)
+    if (!cu.isDefined) {
+      log.error(s"Compilation unit is null for ${fileName} .")
+      _imports = Option(Set.empty)
+      _searchableRefs = Option(Set.empty)
+      _fileMetaData = Option(new FileMetaData(repoId, fileName,
+        new SuperTypes("java.lang.Object", List.empty),
+        List.empty[TypeDeclaration], List.empty, List.empty, List.empty,
+        List.empty, List.empty))
+    } else {
+      val scbr: SingleClassBindingResolver = new SingleClassBindingResolver(cu.get)
+      scbr.resolve()
+
+      val nodeVsType = scbr.getTypesAtPosition
+      val score = baseFile.githubRepoInfo.stargazersCount
+      val externalTypeRefs = extractExtTypeRefs(scbr, cu.get, score)
+      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get, repoId, fileName)
+
+      _imports = Option(scbr.getImports.toSet)
+      _searchableRefs = Option(externalTypeRefs)
+      _fileMetaData = Option(fileMetaData)
+    }
+
   }
 
   private def extractExtTypeRefs(scbr: SingleClassBindingResolver,
-                                 cu: CompilationUnit, score: Int): Set[ExternalTypeReference] = {
+                                 cu: CompilationUnit, score: Long): Set[ExternalTypeReference] = {
     import scala.collection.JavaConversions._
     val externalTypeRefs = scbr.getMethodInvoks.values()
       // for every method in the class
@@ -156,6 +186,7 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
   }
 
 }
+
 
 class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics {
 

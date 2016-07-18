@@ -94,7 +94,7 @@ import org.apache.http.util.Args;
 import org.apache.http.util.EntityUtils;
 
 public class DefaultRequestDirector<ABC> extends ABCD<XYZ,TYZ> implements RequestDirector<JKL>, Serializable<T> {
-	class DEF{
+	class DEF {
 		class GHI<bnm>{}
 	}
 	private final Log log;

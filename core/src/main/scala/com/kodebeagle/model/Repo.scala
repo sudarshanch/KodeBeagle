@@ -45,7 +45,7 @@ trait FileInfo extends Serializable {
 
   def sloc: Int
 
-  def repoId: Int
+  def repoId: Long
 
   def repoFileLocation: String
 }

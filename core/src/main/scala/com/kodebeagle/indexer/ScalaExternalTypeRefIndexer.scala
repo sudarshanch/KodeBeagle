@@ -27,25 +27,34 @@ class ScalaExternalTypeRefIndexer extends ScalaTypeRefIndexer {
 
   type ExtTypeRef = ExternalTypeReference
 
+  def generateTypeRefs(repoId: Long, score: Long,
+                             filePath: String, fileContent: String,
+                             packages: Set[String]): Set[ExternalTypeReference] = {
+
+    val indexEntries = ListBuffer[ExternalTypeReference]()
+    log.info(s"File analyzed is >>> $filePath")
+    val imports = extractImports(fileContent, packages)
+    val mayBeLines = Try(Checker.parseLines(fileContent))
+    if (mayBeLines.isSuccess) {
+      implicit val lines = mayBeLines.get
+      val listOfListOfType = toListOfListOfType(ScalaParser.parse(fileContent, imports))
+      indexEntries ++ listOfListOfType.map(listOfType =>
+        ExternalTypeReference(repoId, filePath,
+          listOfType.asInstanceOf[List[ExternalType]].toSet,
+          score))
+    }
+    indexEntries.filter(_.types.nonEmpty).toSet
+  }
+
   def generateTypeReferences(file: (String, String),
                              packages: List[String],
-                             repo: Option[Repository]): Set[TypeReference] = {
-    val indexEntries = ListBuffer[TypeReference]()
+                             repo: Option[Repository]): Set[ExternalTypeReference] = {
     val repository = repo.getOrElse(Repository.invalid)
+    val repoId = repository.id
+    val score = repository.stargazersCount
     val (fileName, fileContent) = file
-      log.info(s"FileName>>> $fileName")
-      val imports = extractImports(fileContent, packages.toSet)
-      val mayBeLines = Try(Checker.parseLines(fileContent))
-      if (mayBeLines.isSuccess) {
-        val absoluteFileName = JavaFileIndexerHelper.fileNameToURL(repository, fileName)
-        implicit val lines = mayBeLines.get
-        val listOfListOfType = toListOfListOfType(ScalaParser.parse(fileContent, imports))
-        indexEntries ++ listOfListOfType.map(listOfType =>
-          ExternalTypeReference(repository.id, absoluteFileName,
-            listOfType.asInstanceOf[List[ExternalType]].toSet,
-            repository.stargazersCount))
-      }
-    indexEntries.filter(_.types.nonEmpty).toSet
+    val filePath = fileNameToURL(repository, fileName)
+    generateTypeRefs(repoId, score, filePath, fileContent, packages.toSet)
   }
 
   override protected def handleInternalImports(arrOfPackageClass: Array[(String, String)],

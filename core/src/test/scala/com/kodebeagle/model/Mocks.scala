@@ -18,12 +18,16 @@
 package com.kodebeagle.model
 
 import com.kodebeagle.configuration.KodeBeagleConfig
+import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import org.apache.hadoop.conf.Configuration
 
-class MockedGithubRepo(val configurationTest: Configuration, val repoPathTest: String)
-  extends GithubRepo(configurationTest,repoPathTest){
-  override def init(): Unit = {
-    _repoGitFiles=Option(
+class MockedGithubRepo() extends GithubRepo() {
+  val mockGithubRepoInfo = new GithubRepoInfo(1, "testlogin", "testgitrepo",
+    "testlogin/testgitrepo", false, false, 100, 5, "", 1, 5,"default-branch", 5)
+  def init(configurationTest: Configuration, repoPathTest: String): MockedGithubRepo = {
+    _repoGitFiles = Option(
       List(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
+    repoInfo = Option(mockGithubRepoInfo)
+    this
   }
 }

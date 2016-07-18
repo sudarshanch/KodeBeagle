@@ -29,10 +29,14 @@ import scala.util.Try
 
 object SparkIndexJobHelper {
 
+  def fileNameToURL(repo: Repository, f: String): String = {
+    val (_, actualFileName) = f.splitAt(f.indexOf('/'))
+    s"""${repo.login}/${repo.name}/blob/${repo.defaultBranch}$actualFileName"""
+  }
+
   def mapToSourceFile(repo: Option[Repository],
                       file: (String, String)): SourceFile = {
     val repo2 = repo.getOrElse(Repository.invalid)
-    import com.kodebeagle.indexer.JavaFileIndexerHelper._
     SourceFile(repo2.id, fileNameToURL(repo2, file._1), file._2)
   }
 

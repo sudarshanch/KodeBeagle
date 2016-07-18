@@ -20,7 +20,7 @@ package com.kodebeagle.model
 import java.io.File
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import org.apache.commons.io.{FileUtils, IOUtils}
+import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
@@ -35,9 +35,9 @@ class GithubRepoSuit extends FunSuite with BeforeAndAfterAll {
       new File(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
 
     s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo/GitRepoTest-git.tar.gz
-       |-C ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo""".stripMargin.!!
+        |-C ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo""".stripMargin.!!
 
-    repo = Option(new MockedGithubRepo(new Configuration, "testlogin/testgitrepo"))
+    repo = Option(new MockedGithubRepo().init(new Configuration, "testlogin/testgitrepo"))
   }
 
   test("getting files from repository") {
@@ -60,29 +60,29 @@ class GithubRepoSuit extends FunSuite with BeforeAndAfterAll {
       && repoStatistics.sloc == 463 && repoStatistics.size == 13728)
   }
 
-  test("test GithubFileInfo.extractFileName"){
-    val files=repo.get.files
-    val githubFileInfo=files.filter(file =>file.filePath.contains("CollectLink.java"))(0)
+  test("test GithubFileInfo.extractFileName") {
+    val files = repo.get.files
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
     assert(githubFileInfo.extractFileName().equals("CollectLink.java"))
   }
 
-  test("test GithubFileInfo.readFileContent"){
-    val files=repo.get.files
-    val githubFileInfo=files.filter(file =>file.filePath.contains("CollectLink.java"))(0)
+  test("test GithubFileInfo.readFileContent") {
+    val files = repo.get.files
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
     assert(githubFileInfo.
       readFileContent.contains("package com.pramati.scraper.google_grp_scraper"))
   }
 
-  test("test GithubFileInfo.extractLang"){
-    val files=repo.get.files
-    val githubFileInfo=files.filter(file =>file.filePath.contains("CollectLink.java"))(0)
+  test("test GithubFileInfo.extractLang") {
+    val files = repo.get.files
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
     assert(githubFileInfo.extractLang.equals("java"))
   }
 
-  test("test GithubFileInfo.repoFileLocation"){
-    val files=repo.get.files
-    val githubFileInfo=files.filter(file =>file.filePath.contains("CollectLink.java"))(0)
+  test("test GithubFileInfo.repoFileLocation") {
+    val files = repo.get.files
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
     assert(githubFileInfo.repoFileLocation.
-      equals("default-login/default-name/blob/default-branch/"))
+      equals("testlogin/testgitrepo/blob/default-branch/"))
   }
 }

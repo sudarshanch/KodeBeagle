@@ -26,13 +26,18 @@ trait ScalaTypeRefIndexer extends ScalaImportExtractor
 
   protected def generateTypeReferences(file: (String, String),
                                        packages: List[String],
-                                       repo: Option[Repository]): Set[TypeReference]
+                                       repo: Option[Repository]): Set[ExternalTypeReference]
 
   protected def toListOfListOfType(listOfListOfTypeInFunction: List[List[TypeInFunction]])
                                   (implicit lines: Lines) = {
     listOfListOfTypeInFunction.map(listOfTypeInFunction =>
       listOfTypeInFunction.map(typeInFunction => toType(typeInFunction)).filter(typeRef =>
         typeRef.typeName.nonEmpty && typeRef.lines.nonEmpty && typeRef.properties.nonEmpty))
+  }
+
+  protected def fileNameToURL(repo: Repository, f: String): String = {
+    val (_, actualFileName) = f.splitAt(f.indexOf('/'))
+    s"""${repo.login}/${repo.name}/blob/${repo.defaultBranch}$actualFileName"""
   }
 }
 

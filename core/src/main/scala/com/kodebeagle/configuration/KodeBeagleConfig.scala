@@ -22,6 +22,7 @@ import scala.collection.JavaConversions._
 import com.typesafe.config.Config
 
 object KodeBeagleConfig extends ConfigReader{
+
   def config: Config = ConfigFactory.load()
   var lastIndex=0
 
@@ -39,16 +40,19 @@ object KodeBeagleConfig extends ConfigReader{
   private[kodebeagle] val linesOfContext = get("kodebeagle.indexing.linesOfContext").get
   // This is required to use GithubAPIHelper
   private[kodebeagle] val githubTokens: Array[String] =
-    get("kodebeagle.spark.githubTokens").get.split(",")
+  get("kodebeagle.spark.githubTokens").get.split(",")
   // This is required to use GithubAPIHelper
   private[kodebeagle] val githubDir: String = get("kodebeagle.github.crawlDir").get
   private[kodebeagle] val sparkMaster: String = get("kodebeagle.spark.master").get
-  
+
   private[kodebeagle] val esNodes: String = get("kodebeagle.es.nodes").get
   private[kodebeagle] val esPort: String = get("kodebeagle.es.port").get
   private[kodebeagle] val esRepositoryIndex: String = get("kodebeagle.es.repositoryIndex").get
   private[kodebeagle] val esRepoTopicIndex: String = get("kodebeagle.es.repoTopicIndex").get
   private[kodebeagle] val esourceFileIndex: String = get("kodebeagle.es.sourceFileIndex").get
+
+  private[kodebeagle] val repoIndicesHdfsPath: String = get("kodebeagle.hdfs.indices.path").get
+  val repoMetaDataHdfsPath: String = get("kodebeagle.hdfs.repo.meta.path").get
 
   def nextToken(arr: Array[String] = githubTokens): String = {
     if (lastIndex == arr.length - 1) {
@@ -59,6 +63,7 @@ object KodeBeagleConfig extends ConfigReader{
       arr(lastIndex)
     }
   }
+
 }
 
 object TopicModelConfig extends ConfigReader {

@@ -19,7 +19,7 @@ package com.kodebeagle.parser
 
 import java.io.{FileReader, InputStream, StringWriter}
 
-import com.kodebeagle.indexer.{Repository, ExternalLine, ExternalType, JavaExternalTypeRefIndexer, Property, RepoFileNameInfo}
+import com.kodebeagle.indexer.{ExternalLine, ExternalType, Property, RepoFileNameInfo}
 import org.apache.commons.io.IOUtils
 import org.mozilla.javascript.ast.ErrorCollector
 import org.mozilla.javascript.{CompilerEnvirons, IRFactory}
@@ -72,108 +72,6 @@ class ParserSuite extends FunSuite with BeforeAndAfterAll {
       (RepoFileNameParser(x), x)
     }
     assert(repoNames.filter(p = x => x._1.isEmpty) === Seq())
-  }
-}
-
-class MethodVisitorSuite extends FunSuite with BeforeAndAfterAll {
-
-  import scala.collection.JavaConversions._
-
-  val stream: InputStream =
-    Thread.currentThread.getContextClassLoader.getResourceAsStream("TransportClient.java")
-
-  val parser: MethodVisitor = new MethodVisitor
-  parser.parse(stream)
-
-  test("Verify method visitor includes lines with usages.") {
-
-    val lines = parser.getListOflineNumbersMap.flatMap(x => x.flatMap(_._2)).map(_.toInt)
-      .toList.sorted.distinct
-
-    assert(lines === List(74, 75, 78, 79, 101, 102, 103, 105, 106, 108, 109, 112, 113, 114, 115,
-      117, 118, 119, 120, 121, 123, 124, 125, 137, 138, 139, 141, 142, 144, 145, 148, 149, 150, 152,
-      153, 154, 155, 156, 158, 159, 160, 172, 174, 177, 182, 187, 188, 189, 190, 191, 198, 203,
-      204))
-  }
-
-  test("Should return a Map of import with methods and lineNumbers") {
-    import java.io.InputStream
-    val stream: InputStream =
-      Thread.currentThread.getContextClassLoader.getResourceAsStream("TransportClient.java")
-
-    import com.kodebeagle.parser.MethodVisitorHelper._
-
-    val testMap = List(Map("io.netty.channel.Channel" -> Map(),
-      "com.google.common.base.Preconditions" -> Map("checkNotNull" ->
-        List(ExternalLine(74, 20, 54), ExternalLine(75, 20, 54)))),
-
-      Map("io.netty.channel.Channel" -> Map("isOpen" -> List(ExternalLine(79, 12, 27)),
-        "isActive" -> List(ExternalLine(79, 32, 49))),
-        "javax.xml.bind.annotation.XmlAnyAttribute" -> Map()),
-
-      Map("org.slf4j.Logger" -> Map("trace" -> List(ExternalLine(114, 13, 24)),
-        "debug" -> List(ExternalLine(103, 5, 80)),
-        "error" -> List(ExternalLine(119, 13, 50), ExternalLine(125, 15, 85))),
-        "org.apache.spark.network.protocol.ChunkFetchRequest" -> Map(),
-        "io.netty.channel.ChannelFutureListener" -> Map(), "java.io.IOException" -> Map(),
-        "org.apache.spark.network.util.NettyUtils" -> Map("getRemoteAddress" ->
-          List(ExternalLine(101, 31, 66))), "io.netty.channel.ChannelFuture" ->
-          Map("cause" -> List(ExternalLine(118, 27, 40), ExternalLine(119, 36, 49),
-            ExternalLine(123, 72, 85)), "isSuccess" -> List(ExternalLine(112, 15, 32))),
-        "io.netty.channel.Channel" -> Map("close" -> List(ExternalLine(121, 13, 27)),
-          "writeAndFlush" -> List(ExternalLine(108, 5, 63))),
-        "org.apache.spark.network.protocol.StreamChunkId" -> Map()),
-
-      Map("org.slf4j.Logger" -> Map("trace" -> List(ExternalLine(139, 5, 49),
-        ExternalLine(150, 13, 97)),
-        "error" -> List(ExternalLine(154, 13, 50), ExternalLine(160, 15, 85))),
-        "io.netty.channel.ChannelFutureListener" -> Map(),
-        "java.io.IOException" -> Map(), "java.util.UUID" ->
-          Map("randomUUID" -> List(ExternalLine(141, 37, 53))),
-        "org.apache.spark.network.util.NettyUtils" ->
-          Map("getRemoteAddress" -> List(ExternalLine(137, 31, 66))),
-        "io.netty.channel.ChannelFuture" -> Map("cause" -> List(ExternalLine(153, 27, 40),
-          ExternalLine(154, 36, 49), ExternalLine(158, 60, 73)), "isSuccess" ->
-          List(ExternalLine(148, 15, 32))), "io.netty.channel.Channel" -> Map("close" ->
-          List(ExternalLine(156, 13, 27)), "writeAndFlush" -> List(ExternalLine(144, 5, 61))),
-        "org.apache.spark.network.protocol.RpcRequest" -> Map()),
-
-      Map("java.util.concurrent.TimeUnit" -> Map(), "java.util.concurrent.ExecutionException" ->
-        Map("getCause" -> List(ExternalLine(189, 34, 45))), "com.google.common.base.Throwables" ->
-        Map("propagate" -> List(ExternalLine(189, 13, 46), ExternalLine(191, 13, 35))),
-        "com.google.common.util.concurrent.SettableFuture" -> Map("set" ->
-          List(ExternalLine(177, 9, 28)), "get" -> List(ExternalLine(187, 14, 57)),
-          "create" -> List(ExternalLine(172, 43, 65)),
-          "setException" -> List(ExternalLine(182, 9, 30)))),
-
-      Map("java.util.concurrent.TimeUnit" -> Map(), "io.netty.channel.Channel" ->
-        Map("close" -> List(ExternalLine(198, 5, 19)))),
-
-      Map("io.netty.channel.Channel" -> Map("remoteAddress" -> List(ExternalLine(204, 28, 50))),
-        "com.google.common.base.Objects" ->
-          Map("toStringHelper" -> List(ExternalLine(203, 12, 39))))
-    )
-    val javaASTBasedIndexer = new JavaExternalTypeRefIndexer()
-    val imports = javaASTBasedIndexer.getImports(parser, Set())
-      .map(importName => importName._1 + "." + importName._2)
-    val tokenMap: List[Map[String, List[ExternalLine]]] = getTokenMap(parser, imports)
-    val resultTokens = getImportsWithMethodAndLineNumbers(parser, tokenMap).map(_._1)
-
-    for (i <- resultTokens.indices) {
-      val resultToken = resultTokens(i)
-      val testToken = testMap(i)
-      assert(resultToken.size === testToken.size)
-      assert((resultToken.keySet diff testToken.keySet) === Set())
-      assert((testToken.keySet diff resultToken.keySet) === Set())
-      resultToken.foreach {
-        case (k, v) =>
-          assert(resultToken(k) === testToken(k))
-      }
-    }
-  }
-
-  override def afterAll() {
-    stream.close()
   }
 }
 

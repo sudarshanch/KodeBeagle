@@ -48,7 +48,7 @@ object FileMetaDataIndexer extends Logger {
 
   // TODO: This class needs to be looked at closely and optimized.
   def generateMetaData(resolver: SingleClassBindingResolver,
-                       unit: CompilationUnit, repoId: Int, fileName: String): FileMetaData = {
+                       unit: CompilationUnit, repoId: Long, fileName: String): FileMetaData = {
     val typesAtPos = resolver.getTypesAtPosition
     // External reference
     val idVsExternalRefs: Map[String, Int] = getExternalRefs(resolver, typesAtPos)

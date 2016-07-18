@@ -36,37 +36,22 @@ trait Type {
 
 abstract class TypeReference {
   type T <: Type
-  def repoId: Int
+  def repoId: Long
   def file: String
   def types: Set[T]
-  def score: Int
+  def score: Long
 }
 
-
-case class InternalTypeReference(repoId: Int, file: String,
-                                 types: Set[InternalType],
-                                 score: Int) extends TypeReference {
-  type T = InternalType
-}
-
-case class ExternalTypeReference(repoId: Int, file: String,
+case class ExternalTypeReference(repoId: Long, file: String,
                                  types: Set[ExternalType],
-                                 score: Int) extends TypeReference {
+                                 score: Long) extends TypeReference {
   type T = ExternalType
-}
-
-case class InternalType(typeName: String, lines: List[InternalLine],
-                        properties: Set[Property]) extends Type {
-  type T = InternalLine
 }
 
 case class ExternalType(typeName: String, lines: List[ExternalLine],
                         properties: Set[Property]) extends Type {
   type T = ExternalLine
 }
-
-case class InternalLine(line: String, lineNumber: Int,
-                        startColumn: Int, endColumn: Int) extends Line
 
 case class ExternalLine(lineNumber: Int, startColumn: Int, endColumn: Int) extends Line
 
@@ -76,7 +61,7 @@ case class Token(importName: String, importExactName: String,
                  lineNumbers: immutable.Set[ExternalLine])
 
 
-case class SourceFile(repoId: Int, fileName: String, fileContent: String)
+case class SourceFile(repoId: Long, fileName: String, fileContent: String)
 
 case class RepoFileNameInfo(login: String, id: Int, name: String, fork: Boolean, language: String,
                             defaultBranch: String, stargazersCount: Int)
@@ -117,6 +102,9 @@ case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
                         methodTypeLocation: List[MethodTypeLocation],
                         methodDefinitionList: List[MethodDefinition],
                         internalRefList: List[InternalRef])
+
+case class JavaFileIndices(searchableRefs: Set[ExternalTypeReference],
+                           fileMetaData: FileMetaData, sourceFile: SourceFile, repo: String)
 
 
 
