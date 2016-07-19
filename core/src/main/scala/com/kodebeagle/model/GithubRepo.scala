@@ -46,16 +46,17 @@ import scala.io.Source
 class GithubRepo(val configuration: Configuration, val repoPath: String)
   extends Repo with Logger with LazyLoadSupport {
 
-  private var _repository: Option[Repository] = None
   private var _files: Option[List[GithubFileInfo]] = None
   private var _stats: Option[RepoStatistics] = None
   private var _languages: Option[Set[String]] = None
+  protected var _repoGitFiles: Option[List[String]]=None
 
   // TODO: How to get this? Two options:
   // 1. Read directly from from Github using repo path.
   //    (But this is likely to hit the github api rate limit)
   // 2. Keep it stored upfront and pass it along in constructor.
-  val repoInfo: Option[GithubRepoInfo] = None
+  var repoInfo: Option[GithubRepoInfo] =
+    Option(GithubRepoInfo("default-login",0,"default-name","default-language","default-branch",0))
 
   init()
 
@@ -64,8 +65,7 @@ class GithubRepo(val configuration: Configuration, val repoPath: String)
     if (repoUpdateHelper.shouldUpdate()) {
       repoUpdateHelper.update()
     }
-    val repoFiles = repoUpdateHelper.downloadLocalFromDfs()
-
+    _repoGitFiles = Option(repoUpdateHelper.downloadLocalFromDfs())
   }
 
   override def files: List[GithubFileInfo] = {
@@ -90,8 +90,9 @@ class GithubRepo(val configuration: Configuration, val repoPath: String)
   }
 
   def repository: Repository = {
+    val repoPath: String =_repoGitFiles.get(0)
     val builder: FileRepositoryBuilder = new FileRepositoryBuilder
-    builder.setGitDir(new File(repoPath)).readEnvironment.findGitDir.build
+    builder.setGitDir(new File(s"$repoPath/.git")).readEnvironment.findGitDir.build
   }
 
   def calculateStats(files: List[GithubFileInfo]): RepoStatistics = {
@@ -145,7 +146,8 @@ class GithubRepo(val configuration: Configuration, val repoPath: String)
     treeWalk.setRecursive(true)
     while (treeWalk.next) {
       val githubFileInfo = new GithubFileInfo(treeWalk.getPathString,
-        treeWalk.getObjectId(0), gitRepo, repoInfo.get)
+        treeWalk.getObjectId(0), gitRepo,
+        repoInfo.get)
       gitHubFilesInfo.append(githubFileInfo)
     }
 
@@ -178,8 +180,9 @@ class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repositor
     val fileType: Array[String] = filePath.split("\\.")
     if (fileType.length > 1) {
       fileType(1)
+    }else {
+      UNKNOWN_LANG
     }
-    UNKNOWN_LANG
   }
 
   override def readSloc(): Int = {

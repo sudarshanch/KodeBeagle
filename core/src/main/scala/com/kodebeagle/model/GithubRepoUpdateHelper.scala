@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kodebeagle.model
 
 import java.io.File
@@ -34,7 +33,6 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
 
   // TODO: Get these from configuration?
   val remoteUrlPrefix = "https://github.com/"
-  val masterBranchName = "master"
   val gitDBName = "git.tar.gz"
   val fsRepoDirPath = "/kodebeagle/repos/"
 
@@ -45,8 +43,6 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
   def fsRepoPath: Path = new Path(join("", fsRepoDirPath, repoPath))
 
   def localRepoPath: String = join(File.separator, localCloneDir, repoPath)
-
-  def localBranchPath: String = join(File.separator, localRepoPath, masterBranchName)
 
   def localGitPath: String = join(File.separator, localRepoPath, gitDBName)
 
@@ -88,26 +84,18 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
 
     val cleanClone = buildCloneCommand(repoName, cloneUrl)
 
-    val tarMasterCmd = bashCmdsFromDir(localRepoPath,
-      Seq(
-        s"""cd ${localRepoPath}""",
-        s"""tar -zcf master.tar.gz ${repoName}/ --exclude "${repoName}/.git""""))
-
     val tarGitCmd = bashCmdsFromDir(localRepoPath,
       Seq(
         s"""cd ${localRepoPath}""",
         s"""tar -zcf git.tar.gz ${repoName}/.git/"""))
 
     log.debug("Clean clone command is : " + cleanClone)
-    log.debug("Tar master command is : " + tarMasterCmd)
     log.debug("Tar git command is : " + tarGitCmd)
 
     cleanClone.!!
-    tarMasterCmd.!!
     tarGitCmd.!!
 
-    val pathsToCopy = Array(new Path(s"""${localRepoPath}/master.tar.gz"""),
-      new Path(s"""${localRepoPath}/git.tar.gz"""))
+    val pathsToCopy = Array(new Path(s"""${localRepoPath}/git.tar.gz"""))
 
     fs.mkdirs(fsRepoPath)
     fs.copyFromLocalFile(true, true, pathsToCopy, fsRepoPath)
@@ -126,23 +114,22 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
 
     val files = fs.listStatus(fsRepoPath);
     val fileBuff = ListBuffer[String]()
-    val localRepoCrtOp = Seq("/bin/bash", "-c", s"""mkdir -p ${localRepoPath})""").!!
+    val localRepoCrtOp = s"""mkdir -p ${localRepoPath}""".!!
     log.info(localRepoCrtOp)
     for (f <- files) {
       val fileName = f.getPath().getName
-      f.getModificationTime
-      val localFilePath = join(File.separator, localRepoPath, fileName)
+      val localFilePath: String = join(File.separator, localRepoPath, fileName)
       fs.copyToLocalFile(false, f.getPath, new Path(localFilePath))
       if (f.getPath().getName.endsWith("gz")) {
-        val output = s"""tar -xzf ${localFilePath} -C $localRepoPath""".!!
+        val output = s"""tar -xzf ${localFilePath} -C ${localRepoPath}""".!!
         log.info(output)
 
-        val delOut = s"""rm $localFilePath"""
+        val delOut = s"""rm $localFilePath""".!!
         log.info(delOut)
       }
 
       fileBuff += join(File.separator,
-        localRepoPath, fileName.substring(0, fileName.indexOf("\\.")))
+        localRepoPath, repoPath.split("/")(1))
     }
     fileBuff.toList
   }
