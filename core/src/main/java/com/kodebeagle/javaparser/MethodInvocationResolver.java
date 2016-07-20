@@ -219,13 +219,7 @@ public class MethodInvocationResolver extends TypeResolver {
             if (variableId == null
                     || !getVariableBinding().containsKey(variableId)) {
 
-                String staticTypeRef = getImportedNames().get(target);
-                if (staticTypeRef != null) {
-                    // targetType = "<static>" + staticTypeRef;
-                    targetType = staticTypeRef;
-                } else {
-                    //System.out.println("Ignoring target " + target);
-                }
+                targetType = getFullyQualifiedNameFor(target);
             } else {
                 targetType = getVariableTypes().get(variableId);
             }

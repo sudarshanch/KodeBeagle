@@ -86,11 +86,3 @@ class GithubRepoSuit extends FunSuite with BeforeAndAfterAll {
       equals("default-login/default-name/blob/default-branch/"))
   }
 }
-
-class MockedGithubRepo(val configurationTest: Configuration, val repoPathTest: String)
-  extends GithubRepo(configurationTest,repoPathTest){
-  override def init(): Unit = {
-    _repoGitFiles=Option(
-      List(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
-  }
-}

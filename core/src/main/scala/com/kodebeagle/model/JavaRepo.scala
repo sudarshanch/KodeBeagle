@@ -102,7 +102,8 @@ class JavaFileInfo(baseFile: FileInfo) extends FileInfo with LazyLoadSupport {
     import scala.collection.JavaConversions._
 
     val parser: JavaASTParser = new JavaASTParser(true)
-    val cu: CompilationUnit = parser.getAST(fileContent, ParseType.COMPILATION_UNIT).asInstanceOf
+    val cu: CompilationUnit = parser.getAST(fileContent, ParseType.COMPILATION_UNIT)
+      .asInstanceOf[CompilationUnit]
     val scbr: SingleClassBindingResolver = new SingleClassBindingResolver(cu)
     scbr.resolve()
 
