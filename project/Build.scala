@@ -25,6 +25,7 @@ import sbt._
 import sbtassembly.AssemblyKeys._
 import sbtassembly.{AssemblyPlugin, MergeStrategy}
 
+// scalastyle:off
 object KodeBeagleBuild extends Build {
 
   lazy val root = Project(
@@ -39,6 +40,9 @@ object KodeBeagleBuild extends Build {
 
   lazy val core = Project("core", file("core"), settings =
     coreSettings)
+
+  lazy val fatJar = Project("fatJar", file("core"), settings =
+    fatJarSettings)
 
   lazy val pluginImpl = Project("pluginImpl", file("plugins/idea/pluginImpl"), settings =
     pluginSettingsFull ++ findbugsSettings ++ scalaPluginSettings ++
@@ -68,7 +72,7 @@ object KodeBeagleBuild extends Build {
 
   def aggregatedProjects: Seq[ProjectReference] = {
     if (ideaLib.isDefined) {
-      Seq(core, pluginBase, pluginImpl, pluginTests)
+      Seq(core, fatJar, pluginBase, pluginImpl, pluginTests)
     } else {
       println(
         """[warn] Plugin project disabled. To enable append -Didea.lib="idea/lib"""" ++
@@ -78,8 +82,8 @@ object KodeBeagleBuild extends Build {
     }
   }
 
-  def scalaPluginSettings =  Seq(
-    scalaVersion := "2.11.6",
+  def scalaPluginSettings = Seq(
+    scalaVersion := "2.10.4",
     libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value % "provided"
   )
 
@@ -107,21 +111,23 @@ object KodeBeagleBuild extends Build {
     name := "plugin-test",
     libraryDependencies ++= Dependencies.ideaPluginTest,
     autoScalaLibrary := true,
-    scalaVersion := "2.11.6")
+    scalaVersion := "2.10.4")
 
-  def coreSettings = kodebeagleSettings ++ Seq(libraryDependencies ++= Dependencies.kodebeagle) ++ Seq(assemblyMergeStrategy in assembly := {
+  def coreSettings = kodebeagleSettings ++ Seq(libraryDependencies ++= Dependencies.kodebeagle)
+
+  def fatJarSettings = kodebeagleSettings ++ Seq(libraryDependencies ++= Dependencies.kodebeagleProvided) ++ Seq(assemblyMergeStrategy in assembly := {
     case "plugin.properties" | "plugin.xml" | ".api_description" | "META-INF/eclipse.inf" | ".options" => MergeStrategy.first
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)
-  })
+  }) ++ Seq(target := baseDirectory.value / "assembly")
 
   def kodebeagleSettings =
     Defaults.coreDefaultSettings ++ Seq(
       name := "KodeBeagle",
       organization := "com.kodebeagle",
       git.baseVersion := "0.1.0",
-      scalaVersion := "2.11.6",
+      scalaVersion := "2.10.4",
       git.useGitDescribe := true,
       scalacOptions := scalacOptionsList,
       //resolvers += Resolver.mavenLocal,
@@ -137,25 +143,34 @@ object KodeBeagleBuild extends Build {
 
 object Dependencies {
 
+  val sparkCore = "org.apache.spark" %% "spark-core" % "1.6.1"
+  val sparkSql = "org.apache.spark" %% "spark-sql" % "1.6.1"
+  val graphx = "org.apache.spark" %% "spark-graphx" % "1.4.1"
+
+  val spark = Seq(sparkCore, sparkSql, graphx)
+  val sparkProvided = spark.map(d => d % "provided")
+
+  val esSpark = "org.elasticsearch" %% "elasticsearch-spark" % "2.1.0.Beta4"
+  val esSparkExcluded = esSpark.exclude("org.apache.spark", "spark-sql_2.10")
+    .exclude("org.apache.spark", "spark-core_2.10")
+
+  val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "3.7.0.201502260915-r"
+  val jgitProvided = jgit % "provided"
+
+  val javaparser = "com.github.javaparser" % "javaparser-core" % "2.0.0"
   val scalastyle = "org.scalastyle" %% "scalastyle" % "0.7.0"
-  // Needed for scala parsing.
-  val spark = "org.apache.spark" %% "spark-core" % "1.4.1"
-  //"org.apache.spark" %% "spark-core" % "1.3.1" // % "provided" Provided makes it not run through sbt run.
-  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3"
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val slf4j = "org.slf4j" % "slf4j-log4j12" % "1.7.10"
-  val javaparser = "com.github.javaparser" % "javaparser-core" % "2.0.0"
   val json4s = "org.json4s" %% "json4s-ast" % "3.2.10"
   val json4sJackson = "org.json4s" %% "json4s-jackson" % "3.2.10"
   val httpClient = "commons-httpclient" % "commons-httpclient" % "3.1"
   val config = "com.typesafe" % "config" % "1.2.1"
-  val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "3.7.0.201502260915-r" intransitive()
   val commonsIO = "commons-io" % "commons-io" % "2.4"
-  val esSpark = "org.elasticsearch" % "elasticsearch-spark_2.11" % "2.1.0.Beta4"
+
   val guava = "com.google.guava" % "guava" % "18.0"
-  val akka = "com.typesafe.akka" % "akka-actor_2.11" % "2.4.0"
+  val akka = "com.typesafe.akka" %% "akka-actor" % "2.3.15"
   val compress = "org.apache.commons" % "commons-compress" % "1.10"
-  val graphx = "org.apache.spark" % "spark-graphx_2.11" % "1.4.1"
+
   val junit = "junit" % "junit" % "4.12"
   val rhino = "org.mozilla" % "rhino" % "1.7R4"
 
@@ -173,13 +188,21 @@ object Dependencies {
     val text = "org.eclipse.text" % "org.eclipse.text" % "3.5.101"
 
     val allDeps = Seq(tycho, contentType, coreJobs, coreResources, coreRT, eqCommon, eqPref, eqReg, osgi, text)
+    val allDepsInTransitive = allDeps.map(d => d.intransitive())
   }
 
-  val kodebeagle = Seq(akka, httpClient, scalastyle, spark, parserCombinator, scalaTest, slf4j, javaparser, json4s, config,
-    json4sJackson, jgit, commonsIO, esSpark, graphx, guava, compress, junit, rhino) ++ EclipseDeps.allDeps
+  val base = Seq(akka, httpClient, scalastyle, scalaTest, slf4j, json4s, config, json4sJackson, commonsIO,
+    guava, compress, junit, rhino, javaparser)
+
+  val kodebeagle = base ++ EclipseDeps.allDeps ++ spark ++ Seq(jgit, esSpark)
+
+  val kodebeagleProvided =
+    base ++ EclipseDeps.allDepsInTransitive ++ sparkProvided ++ Seq(jgitProvided, esSparkExcluded)
 
   val ideaPluginTest = Seq(scalaTest, commonsIO)
   val ideaPlugin = Seq()
   // transitively uses
   // commons-compress-1.4.1
 }
+
+// scalastyle:on
