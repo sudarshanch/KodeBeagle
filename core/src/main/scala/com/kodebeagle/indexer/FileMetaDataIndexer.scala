@@ -65,7 +65,7 @@ object FileMetaDataIndexer extends Logger {
     // internal references
     val internalRefsList = getInternalRefs(unit, resolver)
     val fileTypes = getFileTypes(unit, resolver)
-    val superTypes = SuperTypes(resolver.getSuperType, resolver.getInterfaces.toList)
+    val superTypes = SuperTypes(resolver.getSuperType.toMap, resolver.getInterfaces.toMap)
     FileMetaData(repoId, fileName, superTypes, fileTypes.toList,
       externalRefsList.toList, typeLocationVarList.toList ++ importLocationList.toList,
       typeLocationMethodList.toList, methodDefinitionList.toList, internalRefsList.toList)

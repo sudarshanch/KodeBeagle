@@ -139,11 +139,11 @@ public class SingleClassBindingResolver {
         return resolver.getImportsDeclarationNode();
     }
 
-    public String getSuperType() {
+    public Map<String,String> getSuperType() {
         return resolver.getSuperType();
     }
 
-    public List<String> getInterfaces() {
+    public Map<String,List<String>> getInterfaces() {
         return resolver.getInterfaces();
     }
 

@@ -125,11 +125,13 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     }.toOption
 
     if (!cu.isDefined) {
+      import collection.JavaConverters._
       log.error(s"Compilation unit is null for ${fileName} .")
       _imports = Option(Set.empty)
       _searchableRefs = Option(Set.empty)
       _fileMetaData = Option(new FileMetaData(repoId, fileName,
-        new SuperTypes("java.lang.Object", List.empty),
+        new SuperTypes(Map("java.lang.Object"->"java.lang.Object"),
+          Map("java.lang.Object"->List.empty.asJava)),
         List.empty[TypeDeclaration], List.empty, List.empty, List.empty,
         List.empty, List.empty))
     } else {

@@ -17,6 +17,7 @@
 
 package com.kodebeagle.javaparser;
 
+import com.google.common.base.Joiner;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.core.dom.*;
 
@@ -38,13 +39,13 @@ public class MethodInvocationResolver extends TypeResolver {
     private List<MethodDecl> declaredMethods = new ArrayList<MethodDecl>();
     private List<TypeDecl> typeDeclarations = new ArrayList<>();
     protected Map<String, String> types = new HashMap();
-    protected Queue<String> typesInFile = new ArrayDeque<>();
-    protected String superType;
-    private List<Object> interfacesFullyQualifiedName = new ArrayList<Object>();
-    protected List<String> interfaces = new ArrayList<String>();
+    protected Stack<String> typesInFile = new Stack<>();
+    protected Map<String,String> typeTosuperType=new HashMap<>();
+    private Map<String,List<Object>> typeToInterfacesFullyQualifiedName = new HashMap<>();
+    protected Map<String,List<String>> typeToInterfaces = new HashMap<>();
 
-    public String getSuperType() {
-        return superType;
+    public Map<String,String> getSuperType() {
+        return typeTosuperType;
     }
 
     public List<TypeDecl> getTypeDeclarations() {
@@ -59,8 +60,6 @@ public class MethodInvocationResolver extends TypeResolver {
         return declaredMethods;
     }
 
-    String type = "";
-
     private String removeSpecialSymbols(final String pType) {
         String type = pType;
         if (type != null && type.contains("<")) {
@@ -73,16 +72,17 @@ public class MethodInvocationResolver extends TypeResolver {
 
     @Override
     public boolean visit(org.eclipse.jdt.core.dom.TypeDeclaration td) {
-        if (typesInFile.isEmpty()) {
-            type = "";
-        }
+        String typeFullyQualifiedName=removeSpecialSymbols(td.getName().getFullyQualifiedName());
         if (td.getSuperclassType() != null) {
-            superType = getFullyQualifiedNameFor(removeSpecialSymbols(td.getSuperclassType().toString()));
+            typeTosuperType.put(typeFullyQualifiedName,
+                    getFullyQualifiedNameFor(removeSpecialSymbols(td.getSuperclassType().toString())));
         }
-        interfacesFullyQualifiedName.addAll(Arrays.<Object>asList(td.superInterfaceTypes().toArray()));
-        typesInFile.add(td.getName().getFullyQualifiedName());
-        String type = removeSpecialSymbols(td.getName().getFullyQualifiedName());
-        TypeDecl obj = new TypeDecl(type, td.getName().getStartPosition());
+        if(td.superInterfaceTypes()!=null && td.superInterfaceTypes().size()>0) {
+            List<Object> interfaces=td.superInterfaceTypes();
+            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName,interfaces);
+        }
+        typesInFile.push(td.getName().getFullyQualifiedName());
+        TypeDecl obj = new TypeDecl(typeFullyQualifiedName, td.getName().getStartPosition());
         typeDeclarations.add(obj);
         return true;
     }
@@ -94,10 +94,11 @@ public class MethodInvocationResolver extends TypeResolver {
     @Override
     public void endVisit(org.eclipse.jdt.core.dom.TypeDeclaration td) {
         if (!typesInFile.isEmpty()) {
-            String xyz = typesInFile.remove();
-            type = type + xyz + ".";
-            types.put(xyz, currentPackage + "." + type.substring(0, type.lastIndexOf(".")));
+            String qualifiedTypeName= Joiner.on(".").skipNulls().join(typesInFile);
+            String typeName = typesInFile.pop();
+            types.put(typeName, currentPackage + "." +qualifiedTypeName);
         }
+        super.endVisit(td);
     }
 
     @Override
@@ -114,7 +115,7 @@ public class MethodInvocationResolver extends TypeResolver {
         }
         super.endVisit(node);
     }
-
+    @Override
     public boolean visit(Assignment assignment) {
         return super.visit(assignment);
     }
@@ -167,6 +168,30 @@ public class MethodInvocationResolver extends TypeResolver {
             invoks.add(methodInvokRef);
         }
         return true;
+    }
+
+    @Override
+    public boolean visit(org.eclipse.jdt.core.dom.EnumDeclaration ed){
+        String typeFullyQualifiedName=removeSpecialSymbols(ed.getName().getFullyQualifiedName());
+        if(ed.superInterfaceTypes()!=null && ed.superInterfaceTypes().size()>0) {
+            List<Object> interfaces=ed.superInterfaceTypes();
+            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName,interfaces);
+        }
+        typesInFile.push(ed.getName().getFullyQualifiedName());
+        TypeDecl obj = new TypeDecl(typeFullyQualifiedName, ed.getName().getStartPosition());
+        typeDeclarations.add(obj);
+
+        return true;
+    }
+
+    @Override
+    public void endVisit(org.eclipse.jdt.core.dom.EnumDeclaration ed) {
+        if (!typesInFile.isEmpty()) {
+            String qualifiedTypeName= Joiner.on(".").skipNulls().join(typesInFile);
+            String typeName = typesInFile.pop();
+            types.put(typeName, currentPackage + "." +qualifiedTypeName);
+        }
+        super.endVisit(ed);
     }
 
     /**
@@ -259,11 +284,16 @@ public class MethodInvocationResolver extends TypeResolver {
         return argTypes;
     }
 
-    public List<String> getInterfaces() {
-        for (int i = 0; i < interfacesFullyQualifiedName.size(); i++)
-            interfaces.add(getFullyQualifiedNameFor(
-                    removeSpecialSymbols(interfacesFullyQualifiedName.get(i).toString())));
-        return interfaces;
+    public Map<String,List<String>> getInterfaces() {
+        Map<String,List<String>> typeToInterfaces=new HashMap<>();
+        for(String type:typeToInterfacesFullyQualifiedName.keySet()){
+            List<String> interfaces=new ArrayList<>();
+            for(Object intrface:typeToInterfacesFullyQualifiedName.get(type)){
+                interfaces.add(getFullyQualifiedNameFor(intrface.toString()));
+            }
+            typeToInterfaces.put(type,interfaces);
+        }
+        return typeToInterfaces;
     }
 
     public static class TypeDecl {

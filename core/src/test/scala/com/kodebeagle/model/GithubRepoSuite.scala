@@ -24,7 +24,7 @@ import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
-class GithubRepoSuit extends FunSuite with BeforeAndAfterAll {
+class GithubRepoSuite extends FunSuite with BeforeAndAfterAll {
   var repo: Option[GithubRepo] = None
 
   override def beforeAll {

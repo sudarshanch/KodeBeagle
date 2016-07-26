@@ -148,18 +148,32 @@ public class TypeResolver extends ASTVisitor {
      */
 	private void addBinding(final ASTNode node, final SimpleName name,
 			final Type type) {
-		final int bindingId = nextVarId;
-		nextVarId++;
-		nodeScopes.get(node).put(name.getIdentifier(), bindingId);
-		nodeScopes.get(node.getParent()).put(name.getIdentifier(), bindingId);
-		variableBinding.put(bindingId, Lists.<ASTNode> newArrayList());
 		final String nameOfType = getNameOfType(type);
-		variableTypes.put(bindingId, nameOfType);
+		int bindingId=addBinding(node,name,nameOfType);
 		// Put the node reference in too (to know diff instances of same type)
 		variableRefBinding.put(bindingId, type);
+    }
+
+    /**
+     * add binding to current scope
+     * @param node
+     * @param name
+     * @param fullTypeName
+     */
+    private int addBinding(final ASTNode node, final SimpleName name,
+                            final String fullTypeName) {
+        final int bindingId = nextVarId;
+        nextVarId++;
+        nodeScopes.get(node).put(name.getIdentifier(), bindingId);
+        nodeScopes.get(node.getParent()).put(name.getIdentifier(), bindingId);
+        variableBinding.put(bindingId, Lists.<ASTNode>newArrayList());
+        variableTypes.put(bindingId, fullTypeName);
+        // Put the node reference in too (to know diff instances of same type)
 		// Put the node reference name in too (to know diff instances of same type)
 		variableDeclarationBinding.put(bindingId, name);
+		return bindingId;
 	}
+
 
 	/**
 	 * Add the binding data for the given name at the given scope and position.
@@ -316,10 +330,17 @@ public class TypeResolver extends ASTVisitor {
 			if (invocation.getName() == node) {
 				return true;
 			}
+
+        }
+        // method declaration can have same name as variable but this does not mean it is binding to that variable
+        // added particularly for enum
+        if(node.getParent().getNodeType() == ASTNode.METHOD_DECLARATION){
+            return true;
 		}
 		addBindingData(node.getIdentifier(), node, nodeScopes.get(node));
 		return true;
 	}
+
 
 	/**
 	 * Looks for Method Parameters.
@@ -377,11 +398,21 @@ public class TypeResolver extends ASTVisitor {
 		return true;
 	}
 
-	@Override
+    @Override
+    public boolean visit(org.eclipse.jdt.core.dom.EnumConstantDeclaration node) {
+		addBinding(node, node.getName(),
+				getFullyQualifiedNameFor(
+						((org.eclipse.jdt.core.dom.EnumDeclaration) node.getParent()).getName().getIdentifier())
+						+ "." + node.getName().getIdentifier());
+		return true;
+    }
+
+    @Override
 	public boolean visit(ArrayType node) {
 		addTypeBinding(node);
 		return true;
 	}
+
 
 	@Override
 	public boolean visit(UnionType node) {
