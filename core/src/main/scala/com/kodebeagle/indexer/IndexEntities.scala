@@ -93,7 +93,7 @@ case class MethodDefinition(loc: String, method: String, argTypes: List[String])
 
 case class InternalRef(childLine: String, parentLine: String)
 
-case class SuperTypes(superClass: Map[String,String], interfaces: Map[String,util.List[String]])
+case class SuperTypes(superClass: Map[String,String], interfaces: Map[String, List[String]])
 
 case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
                         fileTypes: util.List[TypeDeclaration],

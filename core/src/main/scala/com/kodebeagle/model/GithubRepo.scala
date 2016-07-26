@@ -208,7 +208,7 @@ class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repositor
   }
 
   override def repoFileLocation: String = {
-    s"${githubRepoInfo.login}/${githubRepoInfo.name}/blob/${githubRepoInfo.defaultBranch}/"
+    s"${githubRepoInfo.login}/${githubRepoInfo.name}/blob/${githubRepoInfo.defaultBranch}/$filePath"
   }
 
   override def repoId: Long = {

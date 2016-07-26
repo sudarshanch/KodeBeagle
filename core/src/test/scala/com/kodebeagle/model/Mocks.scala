@@ -22,11 +22,11 @@ import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import org.apache.hadoop.conf.Configuration
 
 class MockedGithubRepo() extends GithubRepo() {
-  val mockGithubRepoInfo = new GithubRepoInfo(1, "testlogin", "testgitrepo",
-    "testlogin/testgitrepo", false, false, 100, 5, "", 1, 5,"default-branch", 5)
+  val mockGithubRepoInfo = new GithubRepoInfo(1, "himukr", "google-grp-scraper",
+    "himukr/google-grp-scraper", false, false, 100, 5, "", 1, 5,"master", 5)
   def init(configurationTest: Configuration, repoPathTest: String): MockedGithubRepo = {
     _repoGitFiles = Option(
-      List(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
+      List(s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"))
     repoInfo = Option(mockGithubRepoInfo)
     this
   }

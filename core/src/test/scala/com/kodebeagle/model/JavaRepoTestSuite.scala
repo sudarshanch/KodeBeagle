@@ -25,22 +25,12 @@ import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
-class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll {
+class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMockSupport {
 
   var testJavaRepo: Option[JavaRepo] = None
 
   override def beforeAll {
-    import sys.process._
-    FileUtils.copyFileToDirectory(
-      new File(Thread.currentThread.
-        getContextClassLoader.getResource("GitRepoTest-git.tar.gz").getPath),
-      new File(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
-
-    s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo/GitRepoTest-git.tar.gz
-        |-C ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo""".stripMargin.!!
-
-    val githubRepo = new MockedGithubRepo().init(new Configuration, "testlogin/testgitrepo")
-    testJavaRepo = Option(new JavaRepo(githubRepo))
+    testJavaRepo = mockRepo.map(new JavaRepo(_))
   }
 
   test("Number of java files check") {

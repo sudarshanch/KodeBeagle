@@ -131,7 +131,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       _searchableRefs = Option(Set.empty)
       _fileMetaData = Option(new FileMetaData(repoId, fileName,
         new SuperTypes(Map("java.lang.Object"->"java.lang.Object"),
-          Map("java.lang.Object"->List.empty.asJava)),
+          Map("java.lang.Object" -> List.empty)),
         List.empty[TypeDeclaration], List.empty, List.empty, List.empty,
         List.empty, List.empty))
     } else {

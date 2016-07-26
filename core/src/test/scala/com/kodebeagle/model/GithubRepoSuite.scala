@@ -24,20 +24,12 @@ import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
-class GithubRepoSuite extends FunSuite with BeforeAndAfterAll {
+class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMockSupport {
+
   var repo: Option[GithubRepo] = None
 
   override def beforeAll {
-    import sys.process._
-    FileUtils.copyFileToDirectory(
-      new File(Thread.currentThread.
-        getContextClassLoader.getResource("GitRepoTest-git.tar.gz").getPath),
-      new File(s"${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo"))
-
-    s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo/GitRepoTest-git.tar.gz
-        |-C ${KodeBeagleConfig.repoCloneDir}/testlogin/testgitrepo""".stripMargin.!!
-
-    repo = Option(new MockedGithubRepo().init(new Configuration, "testlogin/testgitrepo"))
+    repo = mockRepo
   }
 
   test("getting files from repository") {
@@ -79,10 +71,27 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll {
     assert(githubFileInfo.extractLang.equals("java"))
   }
 
+  // scalastyle:off
   test("test GithubFileInfo.repoFileLocation") {
     val files = repo.get.files
     val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
     assert(githubFileInfo.repoFileLocation.
-      equals("testlogin/testgitrepo/blob/default-branch/"))
+      equals("himukr/google-grp-scraper/blob/master/src/main/java/com/pramati/scraper/google_grp_scraper/CollectLink.java"))
+  }
+  // scalastyle:on
+}
+
+trait GitHubRepoMockSupport {
+  def mockRepo: Option[GithubRepo] = {
+    import sys.process._
+    FileUtils.copyFileToDirectory(
+      new File(Thread.currentThread.
+        getContextClassLoader.getResource("GitRepoTest-git.tar.gz").getPath),
+      new File(s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"))
+
+    s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper/GitRepoTest-git.tar.gz
+        |-C ${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper""".stripMargin.!!
+
+    Option(new MockedGithubRepo().init(new Configuration, "himukr/google-grp-scraper"))
   }
 }
