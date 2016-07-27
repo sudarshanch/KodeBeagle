@@ -46,16 +46,20 @@ object RepoAnalyzerJob extends Logger {
     sc.hadoopConfiguration.set("dfs.replication", "1")
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
-    val metaDataLoc: String = Try {
-      args(0)
-    }.toOption.getOrElse(KodeBeagleConfig.repoMetaDataHdfsPath)
+    val metaDataLoc = Try {
+      val arg = args(0)
+      if (arg.contains(",")) {
+        arg.split(",").map(s => s"${KodeBeagleConfig.repoMetaDataHdfsPath}/${s.trim}")
+      } else {
+        Array(arg)
+      }
+    }.toOption.getOrElse(Array(KodeBeagleConfig.repoMetaDataHdfsPath))
 
     val numParts: Int = Try {
       args(1).toInt
     }.toOption.getOrElse(10)
 
-    val df = sqlContext.read.json(metaDataLoc)
-    /* .repartition(numParts) */
+    val df = sqlContext.read.json(metaDataLoc: _*)
 
     val repoInfos = df.select("id", "name", "full_name", "owner.login",
       "private", "fork", "size", "stargazers_count", "watchers_count",
@@ -66,16 +70,14 @@ object RepoAnalyzerJob extends Logger {
       watchers: Long, forks: Long, subscribers: Long,
       defaultBranch: String, language: String) => GithubRepoInfo(
         id, login, name, fullName, isPrivate, isFork, size, watchers,
-        language, forks, subscribers, defaultBranch, stars
-      )
+        language, forks, subscribers, defaultBranch, stars)
       // This is done to handle the case if the language is null
       case Row(id: Long, name: String, fullName: String, login: String,
       isPrivate: Boolean, isFork: Boolean, size: Long, stars: Long,
       watchers: Long, forks: Long, subscribers: Long,
       defaultBranch: String, _) => GithubRepoInfo(
         id, login, name, fullName, isPrivate, isFork, size, watchers,
-        "", forks, subscribers, defaultBranch, stars
-      )
+        "", forks, subscribers, defaultBranch, stars)
     }
 
     val confBroadcast = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
@@ -87,10 +89,10 @@ object RepoAnalyzerJob extends Logger {
     handleJavaIndices(confBroadcast, javafilesRDD)
   }
 
-  // **** Helper methods for the job ******//
+  // **** Helper methods for the job ******// 
   private def filterRepo(ri: GithubRepoInfo): Boolean = {
     (ri.size / 1000 < 1000) && ri.stargazersCount > 5 && Option(ri.language).isDefined &&
-      Seq ("Java", "Scala").exists(_.equalsIgnoreCase(ri.language))
+      Seq("Java", "Scala").exists(_.equalsIgnoreCase(ri.language))
   }
 
   private def handleJavaIndices(confBroadcast: Broadcast[SerializableWritable[Configuration]],
@@ -127,9 +129,9 @@ object RepoAnalyzerJob extends Logger {
         val sourceEntry = toJson(
           new SourceFile(file.repoId, file.repoFileLocation, file.fileContent), isToken = false)
 
-        srchrefWriter.write(srchRefEntry)
-        metaWriter.write(metaDataEntry)
-        srcWriter.write(sourceEntry)
+        srchrefWriter.write(srchRefEntry + "\n")
+        metaWriter.write(metaDataEntry + "\n")
+        srcWriter.write(sourceEntry + "\n")
       })
     } finally {
       Seq(srchrefWriter, srcWriter, metaWriter).foreach(_.close())
@@ -147,7 +149,7 @@ object RepoAnalyzerJob extends Logger {
   }
 
   private def moveFromLocal(login: String, repoName: String, fs: FileSystem)
-                                     (idxFileName: String, remote: String) = {
+                           (idxFileName: String, remote: String) = {
     fs.moveFromLocalFile(new Path(idxFileName),
       new Path(s"${KodeBeagleConfig.repoIndicesHdfsPath}$language/$remote/$login~$repoName"))
   }

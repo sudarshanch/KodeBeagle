@@ -141,7 +141,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       val nodeVsType = scbr.getTypesAtPosition
       val score = baseFile.githubRepoInfo.stargazersCount
       val externalTypeRefs = extractExtTypeRefs(scbr, cu.get, score)
-      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get, repoId, fileName)
+      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get,
+        repoId, repoFileLocation)
 
       _imports = Option(scbr.getImports.toSet)
       _searchableRefs = Option(externalTypeRefs)
@@ -182,7 +183,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       }
     }.toSet)
       // Convert it back to a set of top level ExternalTypeReference object
-      .map(extSet => new ExternalTypeReference(repoId, fileName, extSet, score))
+      .map(extSet => new ExternalTypeReference(repoId, repoFileLocation, extSet, score))
       .toSet
     externalTypeRefs
   }

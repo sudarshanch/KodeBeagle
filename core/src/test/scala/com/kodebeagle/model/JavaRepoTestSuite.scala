@@ -66,18 +66,21 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
     assert(javaFileInfo.imports.size == 15)
   }
 
+  // scalastyle:off
   test("JavaFileInfo.fileMetaData check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
       file => file.fileName.equals("CollectLink.java"))(0)
     // Intention is to check whether fileMetaData presents.
     // The content that are available in fileMetaData will be validated
     // in the test suite related to FileMetaDataIndexer
-    assert(javaFileInfo.fileMetaData.fileName.equals("CollectLink.java"))
+    assert(javaFileInfo.fileMetaData.fileName.equals(
+      "himukr/google-grp-scraper/blob/master/src/main/java/com/pramati/scraper/google_grp_scraper/CollectLink.java"))
     assert(javaFileInfo.fileMetaData.methodTypeLocation.size > 0)
     assert(javaFileInfo.fileMetaData.fileTypes.size > 0)
     assert(javaFileInfo.fileMetaData.externalRefList.size > 0)
     assert(javaFileInfo.fileMetaData.internalRefList.size > 0)
   }
+  // scalastyle:on
 
   test("JavaFileInfo.searchableRefs check for same package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
