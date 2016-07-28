@@ -17,7 +17,7 @@
 
 package com.kodebeagle.parser
 
-import com.kodebeagle.indexer.{ExternalLine, ExternalType, ExternalTypeReference, Property, Repository}
+import com.kodebeagle.indexer.{ExternalLine, ExternalType, ExternalTypeReference, Prop, Repository}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.util.SparkIndexJobHelper
 import org.mozilla.javascript.ast.{AstNode, AstRoot, ErrorCollector, FunctionCall, NodeVisitor, PropertyGet, VariableInitializer}
@@ -131,9 +131,11 @@ object JsParser extends Logger {
     mapOfRefVarAndType.map { tupleOfVarLineType =>
       val props = getProperties(rootNode, tupleOfVarLineType._1.refVariableName)
       val propLines = props.map(prop => (prop.toSource(), prop.getLineno)).groupBy(_._1)
-        .mapValues(_.map(_._2)).map(propLine => Property(propLine._1, toHighLighter(propLine._2)))
+        .mapValues(_.map(_._2)).map(propLine =>
+        Prop(propLine._1, toHighLighter(propLine._2)))
+
       ExternalType(tupleOfVarLineType._2, (toHighLighter(List(tupleOfVarLineType._1.lineNumber))
-        ::: propLines.toList.flatMap(_.lines).asInstanceOf[List[ExternalLine]]).distinct,
+        ::: propLines.toList.flatMap(_.lines)).distinct,
         propLines.toSet)
     }.filter(_.properties.nonEmpty)
   }

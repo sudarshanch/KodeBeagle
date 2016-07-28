@@ -18,33 +18,39 @@
 package com.kodebeagle.javaparser;
 
 import com.google.common.base.Joiner;
-import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jdt.core.dom.*;
-
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Stack;
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class MethodInvocationResolver extends TypeResolver {
 
     private static final String OBJECT_TYPE = "java.lang.Object";
 
-    private Map<String, List<MethodInvokRef>> methodInvoks = new HashMap<String, List<MethodInvokRef>>();
+    private Map<MethodDecl, List<MethodInvokRef>> methodInvoks = new HashMap<>();
     private Stack<MethodDeclaration> methodStack = new Stack<MethodDeclaration>();
     private List<MethodDecl> declaredMethods = new ArrayList<MethodDecl>();
     private List<TypeDecl> typeDeclarations = new ArrayList<>();
-    protected Map<String, String> types = new HashMap();
+    protected Map<String, String> types = new HashMap<>();
     protected Stack<String> typesInFile = new Stack<>();
-    protected Map<String,String> typeTosuperType=new HashMap<>();
-    private Map<String,List<Object>> typeToInterfacesFullyQualifiedName = new HashMap<>();
-    protected Map<String,List<String>> typeToInterfaces = new HashMap<>();
+    protected Map<String, String> typeTosuperType = new HashMap<>();
+    private Map<String, List<Object>> typeToInterfacesFullyQualifiedName = new HashMap<>();
+    protected Map<String, List<String>> typeToInterfaces = new HashMap<>();
 
-    public Map<String,String> getSuperType() {
+    public Map<String, String> getSuperType() {
         return typeTosuperType;
     }
 
@@ -52,7 +58,7 @@ public class MethodInvocationResolver extends TypeResolver {
         return typeDeclarations;
     }
 
-    public Map<String, List<MethodInvokRef>> getMethodInvoks() {
+    public Map<MethodDecl, List<MethodInvokRef>> getMethodInvoks() {
         return methodInvoks;
     }
 
@@ -72,14 +78,14 @@ public class MethodInvocationResolver extends TypeResolver {
 
     @Override
     public boolean visit(org.eclipse.jdt.core.dom.TypeDeclaration td) {
-        String typeFullyQualifiedName=removeSpecialSymbols(td.getName().getFullyQualifiedName());
+        String typeFullyQualifiedName = removeSpecialSymbols(td.getName().getFullyQualifiedName());
         if (td.getSuperclassType() != null) {
             typeTosuperType.put(typeFullyQualifiedName,
                     getFullyQualifiedNameFor(removeSpecialSymbols(td.getSuperclassType().toString())));
         }
-        if(td.superInterfaceTypes()!=null && td.superInterfaceTypes().size()>0) {
-            List<Object> interfaces=td.superInterfaceTypes();
-            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName,interfaces);
+        if (td.superInterfaceTypes() != null && td.superInterfaceTypes().size() > 0) {
+            List<Object> interfaces = td.superInterfaceTypes();
+            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName, interfaces);
         }
         typesInFile.push(td.getName().getFullyQualifiedName());
         TypeDecl obj = new TypeDecl(typeFullyQualifiedName, td.getName().getStartPosition());
@@ -94,9 +100,9 @@ public class MethodInvocationResolver extends TypeResolver {
     @Override
     public void endVisit(org.eclipse.jdt.core.dom.TypeDeclaration td) {
         if (!typesInFile.isEmpty()) {
-            String qualifiedTypeName= Joiner.on(".").skipNulls().join(typesInFile);
+            String qualifiedTypeName = Joiner.on(".").skipNulls().join(typesInFile);
             String typeName = typesInFile.pop();
-            types.put(typeName, currentPackage + "." +qualifiedTypeName);
+            types.put(typeName, currentPackage + "." + qualifiedTypeName);
         }
         super.endVisit(td);
     }
@@ -115,6 +121,7 @@ public class MethodInvocationResolver extends TypeResolver {
         }
         super.endVisit(node);
     }
+
     @Override
     public boolean visit(Assignment assignment) {
         return super.visit(assignment);
@@ -129,11 +136,11 @@ public class MethodInvocationResolver extends TypeResolver {
         String type = getNameOfType(node.getType());
         if (!methodStack.empty()) {
             MethodDeclaration currentMethod = methodStack.peek();
-            String currMethodName = currentMethod.getName().toString();
-            List<MethodInvokRef> invoks = methodInvoks.get(currMethodName);
+            MethodDecl methodDecl = getMethodDecl(currentMethod);
+            List<MethodInvokRef> invoks = methodInvoks.get(methodDecl);
             if (invoks == null) {
-                invoks = new ArrayList<MethodInvokRef>();
-                methodInvoks.put(currMethodName, invoks);
+                invoks = new ArrayList<>();
+                methodInvoks.put(methodDecl, invoks);
             }
             MethodInvokRef methodInvokRef = new MethodInvokRef(node.getType().toString(), type, "", args
                     .size(), node.getStartPosition(), argTypes, node.getLength(), true,
@@ -156,11 +163,11 @@ public class MethodInvocationResolver extends TypeResolver {
         List<String> argTypes = translateArgsToTypes(args, scopeBindings);
         if (!methodStack.empty()) {
             MethodDeclaration currentMethod = methodStack.peek();
-            String currMethodName = currentMethod.getName().toString();
-            List<MethodInvokRef> invoks = methodInvoks.get(currMethodName);
+            MethodDecl methodDecl = getMethodDecl(currentMethod);
+            List<MethodInvokRef> invoks = methodInvoks.get(methodDecl);
             if (invoks == null) {
-                invoks = new ArrayList<MethodInvokRef>();
-                methodInvoks.put(currMethodName, invoks);
+                invoks = new ArrayList<>();
+                methodInvoks.put(methodDecl, invoks);
             }
             MethodInvokRef methodInvokRef = new MethodInvokRef(methodName.toString(), targetType, target, args
                     .size(), node.getName().getStartPosition(), argTypes, methodName.getLength(), false,
@@ -171,11 +178,11 @@ public class MethodInvocationResolver extends TypeResolver {
     }
 
     @Override
-    public boolean visit(org.eclipse.jdt.core.dom.EnumDeclaration ed){
-        String typeFullyQualifiedName=removeSpecialSymbols(ed.getName().getFullyQualifiedName());
-        if(ed.superInterfaceTypes()!=null && ed.superInterfaceTypes().size()>0) {
-            List<Object> interfaces=ed.superInterfaceTypes();
-            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName,interfaces);
+    public boolean visit(org.eclipse.jdt.core.dom.EnumDeclaration ed) {
+        String typeFullyQualifiedName = removeSpecialSymbols(ed.getName().getFullyQualifiedName());
+        if (ed.superInterfaceTypes() != null && ed.superInterfaceTypes().size() > 0) {
+            List<Object> interfaces = ed.superInterfaceTypes();
+            typeToInterfacesFullyQualifiedName.put(typeFullyQualifiedName, interfaces);
         }
         typesInFile.push(ed.getName().getFullyQualifiedName());
         TypeDecl obj = new TypeDecl(typeFullyQualifiedName, ed.getName().getStartPosition());
@@ -187,9 +194,9 @@ public class MethodInvocationResolver extends TypeResolver {
     @Override
     public void endVisit(org.eclipse.jdt.core.dom.EnumDeclaration ed) {
         if (!typesInFile.isEmpty()) {
-            String qualifiedTypeName= Joiner.on(".").skipNulls().join(typesInFile);
+            String qualifiedTypeName = Joiner.on(".").skipNulls().join(typesInFile);
             String typeName = typesInFile.pop();
-            types.put(typeName, currentPackage + "." +qualifiedTypeName);
+            types.put(typeName, currentPackage + "." + qualifiedTypeName);
         }
         super.endVisit(ed);
     }
@@ -197,6 +204,7 @@ public class MethodInvocationResolver extends TypeResolver {
     /**
      * If the passed node is a method invocation or class creation then return the
      * return type of the method based on what is the returned value assigned to.
+     *
      * @param node
      * @return return type
      */
@@ -214,25 +222,36 @@ public class MethodInvocationResolver extends TypeResolver {
 
     @SuppressWarnings("rawtypes")
     private void addMethodDecl(MethodDeclaration node) {
+        MethodDecl methoDecl = getMethodDecl(node);
+        declaredMethods.add(methoDecl);
+    }
+
+    private MethodDecl getMethodDecl(MethodDeclaration node) {
         SimpleName nameNode = node.getName();
         String methodName = nameNode.toString();
-        List params = node.parameters();
-        int num = params.size();
-        List<String> paramTypes = new ArrayList<String>();
-        for (Object p : params) {
+        String returnType = "";
+        if (node.getReturnType2() != null) {
+            returnType = node.getReturnType2().toString();
+        }
+
+        Map<String, String> params = new HashMap<>();
+        for (Object p : node.parameters()) {
             String typeName = OBJECT_TYPE;
             if (p instanceof SingleVariableDeclaration) {
+
                 SingleVariableDeclaration svd = (SingleVariableDeclaration) p;
+                String varName = svd.getName().toString();
                 Type type = svd.getType();
                 typeName = getNameOfType(type);
+
+                params.put(varName, typeName);
             } else {
                 System.err.println("Unxepected AST node type for param - " + p);
             }
-            paramTypes.add(typeName);
-        }
-        declaredMethods.add(new MethodDecl(methodName, num, nameNode
-                .getStartPosition(), paramTypes));
 
+        }
+        return new MethodDecl(methodName, returnType, nameNode
+                .getStartPosition(), params);
     }
 
     protected String translateTargetToType(Expression expression,
@@ -284,14 +303,14 @@ public class MethodInvocationResolver extends TypeResolver {
         return argTypes;
     }
 
-    public Map<String,List<String>> getInterfaces() {
-        Map<String,List<String>> typeToInterfaces=new HashMap<>();
-        for(String type:typeToInterfacesFullyQualifiedName.keySet()){
-            List<String> interfaces=new ArrayList<>();
-            for(Object intrface:typeToInterfacesFullyQualifiedName.get(type)){
+    public Map<String, List<String>> getInterfaces() {
+        Map<String, List<String>> typeToInterfaces = new HashMap<>();
+        for (String type : typeToInterfacesFullyQualifiedName.keySet()) {
+            List<String> interfaces = new ArrayList<>();
+            for (Object intrface : typeToInterfacesFullyQualifiedName.get(type)) {
                 interfaces.add(getFullyQualifiedNameFor(intrface.toString()));
             }
-            typeToInterfaces.put(type,interfaces);
+            typeToInterfaces.put(type, interfaces);
         }
         return typeToInterfaces;
     }
@@ -317,42 +336,63 @@ public class MethodInvocationResolver extends TypeResolver {
 
     public static class MethodDecl {
         private String methodName;
-        private Integer argNum;
-        private Integer location;
-        private List<String> argTypes;
+        private String returnType;
+        private int location;
+        private Map<String, String> args;
 
-        public MethodDecl(String methodName, Integer argNum, Integer location,
-                          List<String> argTypes) {
+        public MethodDecl(String methodName, String returnType, int location,
+                          Map<String, String> args) {
             super();
             this.methodName = methodName;
-            this.argNum = argNum;
+            this.returnType = returnType;
             this.location = location;
-            this.argTypes = argTypes;
+            this.args = args;
+        }
+
+        public String getReturnType() {
+            return returnType;
         }
 
         public String getMethodName() {
             return methodName;
         }
 
-        public Integer getArgNum() {
-            return argNum;
-        }
-
         public Integer getLocation() {
             return location;
         }
 
-        public List<String> getArgTypes() {
-            return argTypes;
+        public Map<String, String> getArgs() {
+            return args;
         }
 
         @Override
         public String toString() {
             return "MethodDecl [methodName=" + methodName + ", argNum="
-                    + argNum + ", location=" + location + ", argTypes="
-                    + argTypes + "]";
+                    + ", location=" + location + ", argTypes="
+                    + args + "]";
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            MethodDecl that = (MethodDecl) o;
+
+            if (location != that.location) return false;
+            if (methodName != null ? !methodName.equals(that.methodName) : that.methodName != null) return false;
+            if (returnType != null ? !returnType.equals(that.returnType) : that.returnType != null) return false;
+            return args != null ? args.equals(that.args) : that.args == null;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = methodName != null ? methodName.hashCode() : 0;
+            result = 31 * result + (returnType != null ? returnType.hashCode() : 0);
+            result = 31 * result + location;
+            result = 31 * result + (args != null ? args.hashCode() : 0);
+            return result;
+        }
     }
 
     public static class MethodInvokRef {

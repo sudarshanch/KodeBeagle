@@ -20,6 +20,7 @@ package com.kodebeagle.indexer
 import java.util
 
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
+import com.kodebeagle.javaparser.MethodInvocationResolver.MethodDecl
 import com.kodebeagle.javaparser.{JavaASTParser, MethodInvocationResolver, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
 import org.eclipse.jdt.core.dom.{ASTNode, CompilationUnit}
@@ -77,7 +78,7 @@ object FileMetaDataIndexer extends Logger {
     for (m <- resolver.getDeclaredMethods) yield {
       val line: Integer = unit.getLineNumber(m.getLocation)
       val col: Integer = unit.getColumnNumber(m.getLocation)
-      MethodDefinition(line + "#" + col, m.getMethodName, m.getArgTypes.toList)
+      MethodDefinition(line + "#" + col, m.getMethodName, m.getArgs.values().toList)
     }
   }
 
@@ -117,7 +118,7 @@ object FileMetaDataIndexer extends Logger {
   }
 
   def getTypeLocationMethodList(unit: CompilationUnit,
-                                methodInvokMap: util.Map[String,
+                                methodInvokMap: util.Map[MethodDecl,
                                   util.List[MethodInvocationResolver.MethodInvokRef]],
                                 idVsExternalRefs: Map[String, Int]):
   scala.collection.mutable.Set[MethodTypeLocation] = {

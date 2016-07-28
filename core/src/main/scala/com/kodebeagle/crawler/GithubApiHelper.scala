@@ -21,7 +21,7 @@ import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.logging.Logger
 import org.apache.commons.httpclient.methods.GetMethod
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams
-import org.apache.commons.httpclient.{HttpClient, MultiThreadedHttpConnectionManager, SimpleHttpConnectionManager}
+import org.apache.commons.httpclient.{HttpClient, SimpleHttpConnectionManager}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 
@@ -104,18 +104,25 @@ object GithubApiHelper extends Logger with Serializable {
         executeRequest(query, token.value) match {
           case Some(method) =>
             val statusCode = method.getStatusCode
+
             val mayBeNextSince = Option(method.getResponseHeader("Link"))
               .map(_.getElements.toList.head.getValue.stripSuffix(">").trim.toLong)
-            val limitRemaining =
-              Option(method.getResponseHeader("X-RateLimit-Remaining")).getOrElse(0)
+
+            val limitRemaining = Option(method.getResponseHeader("X-RateLimit-Remaining"))
+              .map(_.getValue.toInt).getOrElse(0)
+
             if (statusCode == 403 && limitRemaining == 0) {
               log.info(s"Rate limit for token ${token.value} expired")
               tokens.update(token.index,
                 Token(token.index, token.value, tried = true))
               queryRateLimitAPI(query)
+
+            } else if (statusCode == 401) {
+              log.info(s"Token ${tokens.remove(token.index).value} is invalid")
+              queryRateLimitAPI(query)
+
             } else {
-              val returnValue = (httpGetJson(method), mayBeNextSince)
-              returnValue
+              (httpGetJson(method), mayBeNextSince)
             }
           case None => (None, None)
         }

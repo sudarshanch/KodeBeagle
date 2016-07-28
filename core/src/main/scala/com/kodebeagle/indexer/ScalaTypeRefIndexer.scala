@@ -21,6 +21,20 @@ import com.kodebeagle.logging.Logger
 import com.kodebeagle.parser.TypeInFunction
 import org.scalastyle.Lines
 
+case class ExternalTypeReference(repoId: Long, file: String,
+                                 types: Set[ExternalType],
+                                 score: Long)
+
+case class ExternalType(typeName: String, lines: List[ExternalLine],
+                        properties: Set[Prop])
+
+case class Prop(propertyName: String, lines: List[ExternalLine])
+
+case class ExternalLine(lineNumber: Int, startColumn: Int, endColumn: Int)
+
+/* [TODO] Remove the entities defined above and replace it by
+ [TODO] the ones defined in IndexEntities.scala */
+
 trait ScalaTypeRefIndexer extends ScalaImportExtractor
   with ScalaIndexEntityHelper with Logger with Serializable {
 

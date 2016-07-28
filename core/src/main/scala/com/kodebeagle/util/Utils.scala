@@ -22,9 +22,11 @@ import java.net.URI
 import java.util.zip.{ZipEntry, ZipInputStream}
 
 import com.kodebeagle.indexer.{RepoFileNameInfo, Repository, Statistics}
+import com.kodebeagle.javaparser.MethodInvocationResolver.MethodDecl
 import com.kodebeagle.logging.Logger
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
+import scala.collection.JavaConversions._
 
 import scala.collection.mutable
 
@@ -56,6 +58,26 @@ object Utils extends Logger {
     output.close()
     new String(kmlBytes, "utf-8").trim.replaceAll("\t", "  ")
 
+  }
+
+  def generateMethodSignature(methodDecl: MethodDecl): String = {
+    var returnType = methodDecl.getReturnType
+    if (returnType == "void") {
+      returnType = ""
+    }
+
+    val name = methodDecl.getMethodName
+
+    val args = methodDecl.getArgs.map { case (varName, varType) =>
+      if (varName.length <= 3) {
+        ("", varType)
+      } else {
+        (varName, varType)
+      }
+    }.map { case (varName, varType) => s"$varName $varType" }
+      .mkString(" ")
+
+    s"$returnType $name $args"
   }
 
   def readJSFiles(repoFileNameInfo: Option[RepoFileNameInfo],

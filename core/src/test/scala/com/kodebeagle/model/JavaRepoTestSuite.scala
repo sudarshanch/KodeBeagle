@@ -17,12 +17,7 @@
 
 package com.kodebeagle.model
 
-import java.io.File
-
-import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.{ExternalType, ExternalTypeReference}
-import org.apache.commons.io.FileUtils
-import org.apache.hadoop.conf.Configuration
+import com.kodebeagle.indexer.{Context, ContextType}
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
 class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMockSupport {
@@ -56,89 +51,88 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
 
   test("JavaFileInfo.isTestFile check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java"))(0)
+      file => file.fileName.equals("CollectLink.java")).head
     assert(!javaFileInfo.isTestFile())
   }
 
   test("JavaFileInfo.imports check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java"))(0)
+      file => file.fileName.equals("CollectLink.java")).head
     assert(javaFileInfo.imports.size == 15)
   }
 
   // scalastyle:off
   test("JavaFileInfo.fileMetaData check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java"))(0)
+      file => file.fileName.equals("CollectLink.java")).head
     // Intention is to check whether fileMetaData presents.
     // The content that are available in fileMetaData will be validated
     // in the test suite related to FileMetaDataIndexer
-    assert(javaFileInfo.fileMetaData.fileName.equals(
-      "himukr/google-grp-scraper/blob/master/src/main/java/com/pramati/scraper/google_grp_scraper/CollectLink.java"))
-    assert(javaFileInfo.fileMetaData.methodTypeLocation.size > 0)
+    assert(javaFileInfo.fileMetaData.fileName.equals("CollectLink.java"))
+    assert(javaFileInfo.fileMetaData.methodTypeLocation.nonEmpty)
     assert(javaFileInfo.fileMetaData.fileTypes.size > 0)
-    assert(javaFileInfo.fileMetaData.externalRefList.size > 0)
-    assert(javaFileInfo.fileMetaData.internalRefList.size > 0)
+    assert(javaFileInfo.fileMetaData.externalRefList.nonEmpty)
+    assert(javaFileInfo.fileMetaData.internalRefList.nonEmpty)
   }
   // scalastyle:on
 
   test("JavaFileInfo.searchableRefs check for same package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("ScraperStartup.java"))(0)
+      file => file.fileName.equals("ScraperStartup.java")).head
 
     val searchableRefs = javaFileInfo.searchableRefs
-    val externalRef = searchableRefs.head;
+    val externalRef = searchableRefs.contexts.head
     // Number of methods
-    assert(searchableRefs.size == 1)
+    assert(searchableRefs.contexts.size == 1)
     assert(externalRef.types.size == 3)
     // For same package ExternalType
-    val externalType = getExternalType("com.pramati.scraper.google_grp_scraper.CollectLink",
+    val typeInContext = getTypeInContext("com.pramati.scraper.google_grp_scraper.CollectLink",
       externalRef)
 
-    assert(externalType.properties.size == 3)
-    assert(externalType.lines.size == 3)
+    assert(typeInContext.props.size == 3)
+    // TODO context does not contains lines assert(externalType.lines.size == 1)
   }
 
   test("JavaFileInfo.searchableRefs check for java.lang package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("ScraperStartup.java"))(0)
+      file => file.fileName.equals("ScraperStartup.java")).head
     val searchableRefs = javaFileInfo.searchableRefs
-    val externalRef = searchableRefs.head;
+    val context = searchableRefs.contexts.head;
     // Number of methods
-    assert(searchableRefs.size == 1)
-    assert(externalRef.types.size == 3)
+    assert(searchableRefs.contexts.size == 1)
+    assert(context.types.size == 3)
     // For java.lang package ExternalType
-    val externalType = getExternalType("java.lang.Integer", externalRef)
-    assert(externalType.properties.size == 1)
-    assert(externalType.lines.size == 1)
+    val typeInContext = getTypeInContext("java.lang.Integer", context)
+    assert(typeInContext.props.size == 1)
+    // TODO context does not contains lines assert(externalType.lines.size == 1)
   }
 
   test("JavaFileInfo.searchableRefs check for external package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
       file => file.fileName.equals("ScraperStartup.java"))(0)
     val searchableRefs = javaFileInfo.searchableRefs
-    val externalRef = searchableRefs.head;
+    val context = searchableRefs.contexts.head
     // Number of methods
-    assert(searchableRefs.size == 1)
-    assert(externalRef.types.size == 3)
+    assert(searchableRefs.contexts.size == 1)
+    assert(context.types.size == 3)
     // For java.net.URL package ExternalType
-    val externalType = getExternalType("java.net.URL", externalRef)
-    assert(externalType.properties.size == 1)
-    assert(externalType.lines.size == 1)
+    val typeInContext = getTypeInContext("java.net.URL", context)
+    assert(typeInContext.props.size == 1)
+    // TODO context does not contains lines assert(externalType.lines.size == 1)
   }
 
-  private def getExternalType(extType: String,
-                              externalRef: ExternalTypeReference): ExternalType = {
-    var externalType: Option[ExternalType] = None
+  private def getTypeInContext(extType: String,
+                              context: Context): ContextType = {
+    var typeInContext: Option[ContextType] = None
     try {
-      externalType = Option(externalRef.types.filter(
-        t => extType.equals(t.typeName)).head)
+      typeInContext = Option(context.types.filter(
+        t => extType.equals(t.name)).head)
     } catch {
       case e: Exception => {
         fail("Expected type java.lang.Integer is not found in" +
           " ScraperStartup.java")
       }
     }
-    externalType.get
+    typeInContext.get
   }
 }

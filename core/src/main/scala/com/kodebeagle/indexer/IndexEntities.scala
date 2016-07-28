@@ -19,47 +19,35 @@ package com.kodebeagle.indexer
 
 import java.util
 
-import scala.collection.immutable
+case class Line(line: Int, startCol: Int, endCol: Int)
 
-trait Line {
-  def lineNumber: Int
-  def startColumn: Int
-  def endColumn: Int
-}
+trait Property
+
+case class ContextProperty(name: String) extends Property
+
+case class PayloadProperty(name: String, lines: Set[Line]) extends Property
 
 trait Type {
-  type T <: Line
-  def typeName: String
-  def lines: List[T]
-  def properties: Set[Property]
+  type T <: Property
+
+  def name: String
+
+  def props: Set[T]
 }
 
-abstract class TypeReference {
-  type T <: Type
-  def repoId: Long
-  def file: String
-  def types: Set[T]
-  def score: Long
+case class ContextType(name: String, props: Set[ContextProperty]) extends Type {
+  type T = ContextProperty
 }
 
-case class ExternalTypeReference(repoId: Long, file: String,
-                                 types: Set[ExternalType],
-                                 score: Long) extends TypeReference {
-  type T = ExternalType
+case class PayloadType(name: String, props: Set[PayloadProperty]) extends Type {
+  type T = PayloadProperty
 }
 
-case class ExternalType(typeName: String, lines: List[ExternalLine],
-                        properties: Set[Property]) extends Type {
-  type T = ExternalLine
-}
+case class Payload(types: Set[PayloadType])
 
-case class ExternalLine(lineNumber: Int, startColumn: Int, endColumn: Int) extends Line
+case class Context(text: String, types: Set[ContextType])
 
-case class Property(propertyName: String, lines: List[Line])
-
-case class Token(importName: String, importExactName: String,
-                 lineNumbers: immutable.Set[ExternalLine])
-
+case class TypeReference(contexts: Set[Context], payload: Payload, score: Long, file: String)
 
 case class SourceFile(repoId: Long, fileName: String, fileContent: String)
 
@@ -93,7 +81,7 @@ case class MethodDefinition(loc: String, method: String, argTypes: List[String])
 
 case class InternalRef(childLine: String, parentLine: String)
 
-case class SuperTypes(superClass: Map[String,String], interfaces: Map[String, List[String]])
+case class SuperTypes(superClass: Map[String, String], interfaces: Map[String, List[String]])
 
 case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
                         fileTypes: util.List[TypeDeclaration],
@@ -103,7 +91,7 @@ case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
                         methodDefinitionList: List[MethodDefinition],
                         internalRefList: List[InternalRef])
 
-case class JavaFileIndices(searchableRefs: Set[ExternalTypeReference],
+case class JavaFileIndices(searchableRefs: Set[TypeReference],
                            fileMetaData: FileMetaData, sourceFile: SourceFile, repo: String)
 
 

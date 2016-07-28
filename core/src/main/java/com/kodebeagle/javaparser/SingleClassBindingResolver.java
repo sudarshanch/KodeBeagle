@@ -115,7 +115,7 @@ public class SingleClassBindingResolver {
         return nodeTypes;
     }
 
-    public Map<String, List<MethodInvokRef>> getMethodInvoks() {
+    public Map<MethodDecl, List<MethodInvokRef>> getMethodInvoks() {
         return resolver.getMethodInvoks();
     }
 

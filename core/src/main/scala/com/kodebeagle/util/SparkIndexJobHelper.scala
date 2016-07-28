@@ -18,10 +18,12 @@
 package com.kodebeagle.util
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.{RepoFileNameInfo, Repository, SourceFile, Statistics}
+import com.kodebeagle.indexer.{ContextProperty, Line, RepoFileNameInfo, Repository, SourceFile, Statistics}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
+import org.json4s.CustomSerializer
+import org.json4s.JsonAST.{JArray, JInt, JString}
 
 import scala.io.Source
 import scala.util.Try
@@ -77,14 +79,15 @@ object SparkIndexJobHelper {
       fileInfo.fork, fileInfo.language, fileInfo.defaultBranch, fileInfo.stargazersCount,
       stats.sloc, stats.fileCount, stats.size))
 
- private def toStatistics(sloc: Int, count: Int, size: Int) = Statistics(sloc, count, size)
+  private def toStatistics(sloc: Int, count: Int, size: Int) = Statistics(sloc, count, size)
 
   def makeRDD(sc: SparkContext, batch: String): RDD[(String, (String, String))] = {
     val inputDir = s"${KodeBeagleConfig.githubDir}/$batch/"
     val rdd = sc.wholeTextFiles(s"$inputDir*")
       .map { case (fName, fContent) =>
         val cleanedFName = fName.stripPrefix("file:").stripPrefix("hdfs:").stripPrefix(inputDir)
-        (cleanedFName, fContent) }
+        (cleanedFName, fContent)
+      }
       .map { case (fName, fContent) => (extractRepoDirName(fName), (fName, fContent)) }
       .persist(StorageLevel.MEMORY_AND_DISK)
     rdd
@@ -92,7 +95,7 @@ object SparkIndexJobHelper {
 
 
   def createRepoIndex(rdd: RDD[(String, (String, String))],
-                      batch: String): Map[String, (Option[Repository], List[String])]  = {
+                      batch: String): Map[String, (Option[Repository], List[String])] = {
     val aggregateRDD = rdd
       .map { case (repoDirName, (_, fContent)) => (repoDirName, getStats(fContent)) }
       .reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2, x._3 ++ y._3, x._4 + y._4))
@@ -128,15 +131,18 @@ object SparkIndexJobHelper {
       item, esHeader = true, isToken = isToken)).mkString("\n")
   }
 
-  private def toIndexTypeJson[T <: AnyRef <% Product with Serializable](indexName: String,
-                                                                        typeName: String, t: T,
-                                                                        esHeader: Boolean = true,
-                                                                        isToken: Boolean = false
-                                                                       ) = {
+  def toIndexTypeJson[T <: AnyRef <% Product with Serializable](indexName: String,
+                                                                typeName: String, t: T,
+                                                                esHeader: Boolean = true,
+                                                                isToken: Boolean = false
+                                                               ): String = {
     import org.json4s._
     import org.json4s.jackson.Serialization
     import org.json4s.jackson.Serialization.write
-    implicit val formats = Serialization.formats(NoTypeHints)
+
+    implicit val formats = Serialization.formats(NoTypeHints) +
+      new LineSerializer + new ContextPropertySerializer
+
     if (esHeader && isToken) {
       s"""|{ "index" : { "_index" : "$indexName", "_type" : "$typeName" } }
           | """.stripMargin + write(t)
@@ -144,7 +150,6 @@ object SparkIndexJobHelper {
       s"""|{ "index" : { "_index" : "$indexName", "_type" : "$typeName" } }
           |""".stripMargin + write(t)
     } else "" + write(t)
-
   }
 
   def toJson[T <: AnyRef <% Product with Serializable](t: T, addESHeader: Boolean = true,
@@ -163,4 +168,18 @@ object SparkIndexJobHelper {
     } else "" + write(t)
 
   }
+
+  class LineSerializer extends CustomSerializer[Line](format => ({
+    case JArray(List(JInt(line), JInt(startCol), JInt(endCol))) =>
+      Line(line.toInt, startCol.toInt, endCol.toInt)
+  }, {
+    case line: Line => JArray(List(JInt(line.line), JInt(line.startCol), JInt(line.endCol)))
+  }))
+
+  class ContextPropertySerializer extends CustomSerializer[ContextProperty](format => ({
+    case JString(prop: String) => ContextProperty(prop)
+  }, {
+    case ctxProp: ContextProperty => JString(ctxProp.name)
+  }))
+
 }

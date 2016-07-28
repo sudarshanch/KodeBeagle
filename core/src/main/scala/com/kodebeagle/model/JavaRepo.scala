@@ -23,6 +23,7 @@ import com.kodebeagle.indexer._
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import com.kodebeagle.javaparser.{JavaASTParser, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
+import com.kodebeagle.util.Utils
 import org.eclipse.jdt.core.dom.CompilationUnit
 
 import scala.util.Try
@@ -53,7 +54,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
   assert(baseFile.fileName.endsWith(".java"),
     s"A java file is expected. Actual file: ${baseFile.fileName}")
 
-  private var _searchableRefs: Option[Set[ExternalTypeReference]] = None
+  private var _searchableRefs: Option[TypeReference] = None
 
   private var _fileMetaData: Option[FileMetaData] = None
 
@@ -61,7 +62,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
   private var _repoPath: Option[String] = None
 
-  def searchableRefs: Set[ExternalTypeReference] = {
+  def searchableRefs: TypeReference = {
     getOrCompute(_searchableRefs, () => {
       parse()
       _searchableRefs.get
@@ -115,7 +116,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     import scala.collection.JavaConversions._
 
     val parser: JavaASTParser = new JavaASTParser(true)
-    _repoPath= Option(s"${baseFile.githubRepoInfo.login}/${baseFile.githubRepoInfo.name}")
+    _repoPath = Option(s"${baseFile.githubRepoInfo.login}/${baseFile.githubRepoInfo.name}")
 
     // The file may not even be well formed, so the parser may throw an
     // IllegalArgumentException. Need to handle such a case.
@@ -124,13 +125,13 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
         .asInstanceOf[CompilationUnit]
     }.toOption
 
-    if (!cu.isDefined) {
+    if (cu.isEmpty) {
       import collection.JavaConverters._
-      log.error(s"Compilation unit is null for ${fileName} .")
+      log.error(s"Compilation unit is null for $fileName")
       _imports = Option(Set.empty)
-      _searchableRefs = Option(Set.empty)
-      _fileMetaData = Option(new FileMetaData(repoId, fileName,
-        new SuperTypes(Map("java.lang.Object"->"java.lang.Object"),
+      _searchableRefs = None
+      _fileMetaData = Option(FileMetaData(repoId, fileName,
+        SuperTypes(Map("java.lang.Object" -> "java.lang.Object"),
           Map("java.lang.Object" -> List.empty)),
         List.empty[TypeDeclaration], List.empty, List.empty, List.empty,
         List.empty, List.empty))
@@ -140,9 +141,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
       val nodeVsType = scbr.getTypesAtPosition
       val score = baseFile.githubRepoInfo.stargazersCount
-      val externalTypeRefs = extractExtTypeRefs(scbr, cu.get, score)
-      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get,
-        repoId, repoFileLocation)
+      val externalTypeRefs = extractTypeReference(scbr, cu.get, score)
+      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get, repoId, fileName)
 
       _imports = Option(scbr.getImports.toSet)
       _searchableRefs = Option(externalTypeRefs)
@@ -151,45 +151,45 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
   }
 
-  private def extractExtTypeRefs(scbr: SingleClassBindingResolver,
-                                 cu: CompilationUnit, score: Long): Set[ExternalTypeReference] = {
-    import scala.collection.JavaConversions._
-    val externalTypeRefs = scbr.getMethodInvoks.values()
-      // for every method in the class
-      .map(invokList => {
-      // group the method call by the type of object
-      invokList.groupBy(_.getTargetType)
-        // then map the grp to:
-        .map { case (typ, grp) =>
-        // 1. get list of locations where this type was invoked
-        val lineList = grp.map(t => {
-          val line = cu.getLineNumber(t.getLocation)
-          val col = cu.getColumnNumber(t.getLocation)
-          new ExternalLine(line, col, col + t.getLength)
-        }).toList
-
-        // 2. method names invoked of this type along with a list of their respective locations
-        val propSet = grp.groupBy(_.getMethodName).map { case (prop, pgrp) =>
-          new Property(prop, pgrp.map(t => {
-            val line = cu.getLineNumber(t.getLocation)
-            val col = cu.getColumnNumber(t.getLocation)
-            // TODO: This seems redundant (??)
-            new ExternalLine(line, col, col + t.getLength)
-          }).toList)
-        }.toSet
-
-        new ExternalType(typ, lineList, propSet)
-
-      }
-    }.toSet)
-      // Convert it back to a set of top level ExternalTypeReference object
-      .map(extSet => new ExternalTypeReference(repoId, repoFileLocation, extSet, score))
-      .toSet
-    externalTypeRefs
+  private def extractTypeReference(scbr: SingleClassBindingResolver,
+                                   cu: CompilationUnit, score: Long): TypeReference = {
+    val contexts = generateContexts(scbr)
+    val payload = generatePayload(scbr, cu)
+    TypeReference(contexts, payload, score, repoFileLocation)
   }
 
-}
 
+  def generateContexts(scbr: SingleClassBindingResolver): Set[Context] = {
+    import scala.collection.JavaConversions._
+    scbr.getMethodInvoks.map { case (methodDecl, methodCalls) =>
+      // for every method in the class
+      val contextTypes = methodCalls.groupBy(_.getTargetType)
+        // then map the grp to:
+        .map { case (typ, grp) =>
+        val props = grp.groupBy(_.getMethodName).keys.map(ContextProperty).toSet
+        ContextType(typ, props)
+      }.toSet
+      Context(Utils.generateMethodSignature(methodDecl), contextTypes)
+    }.toSet
+  }
+
+
+  def generatePayload(scbr: SingleClassBindingResolver, cu: CompilationUnit): Payload = {
+    import scala.collection.JavaConversions._
+    val payloadTypes = scbr.getMethodInvoks.values().flatten
+      .groupBy(_.getTargetType).map { case (typ, grp) =>
+      val propSet = grp.groupBy(_.getMethodName).map { case (prop, pgrp) =>
+        PayloadProperty(prop, pgrp.map(t => {
+          val line = cu.getLineNumber(t.getLocation)
+          val col = cu.getColumnNumber(t.getLocation)
+          Line(line, col, col + t.getLength)
+        }).toSet)
+      }.toSet
+      PayloadType(typ, propSet)
+    }.toSet
+    Payload(payloadTypes)
+  }
+}
 
 class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics {
 
@@ -199,3 +199,4 @@ class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics 
 
   override def size: Long = repoStatistics.size
 }
+

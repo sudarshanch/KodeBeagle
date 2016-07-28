@@ -109,10 +109,10 @@ public class ASTParserTest extends AbstractParseTest {
                 "Duration inMethod = new Duration();" +
                 "inMethod.display(); } }";
         setTestConfig();
-        MethodDecl expected = new MethodDecl("display", 0, 112, new ArrayList<String>());
+        MethodDecl expected = new MethodDecl("display", "void", 112, new HashMap<String, String>());
         MethodDecl actual = resolver.getDeclaredMethods().get(0);
-        Assert.assertTrue(expected.getMethodName().equals(actual.getMethodName()) && expected.getArgNum() == actual.getArgNum()
-                && expected.getLocation() == actual.getLocation() && expected.getArgTypes().containsAll(actual.getArgTypes()));
+        Assert.assertTrue(expected.getMethodName().equals(actual.getMethodName()) && expected.getArgs().size() == actual.getArgs().size()
+                && expected.getLocation() == actual.getLocation() && expected.getArgs().values().containsAll(actual.getArgs().values()));
 
     }
 
@@ -200,7 +200,7 @@ public class ASTParserTest extends AbstractParseTest {
                     + "]");
         }
 
-        for (Entry<String, List<MethodInvokRef>> entry : resolver
+        for (Entry<MethodDecl, List<MethodInvokRef>> entry : resolver
                 .getMethodInvoks().entrySet()) {
             System.out.println(" ~~~~~~~~~~~ For method " + entry.getKey()
                     + " ~~~~~~~~~~~");

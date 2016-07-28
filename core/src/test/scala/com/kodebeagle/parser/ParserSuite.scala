@@ -19,7 +19,7 @@ package com.kodebeagle.parser
 
 import java.io.{FileReader, InputStream, StringWriter}
 
-import com.kodebeagle.indexer.{ExternalLine, ExternalType, Property, RepoFileNameInfo}
+import com.kodebeagle.indexer.{ExternalLine, ExternalType, Prop, RepoFileNameInfo}
 import com.kodebeagle.util.RepoFileNameParser
 import org.apache.commons.io.IOUtils
 import org.mozilla.javascript.ast.ErrorCollector
@@ -102,15 +102,15 @@ class JsParserTest extends FunSuite {
         Set(ExternalType("rx", List(ExternalLine(4, -1, -1), ExternalLine(11, -1, -1),
           ExternalLine(87, -1, -1), ExternalLine(173, -1, -1), ExternalLine(45, -1, -1),
           ExternalLine(31, -1, -1), ExternalLine(70, -1, -1), ExternalLine(62, -1, -1),
-          ExternalLine(78, -1, -1)), Set(Property("config", List(ExternalLine(11, -1, -1))),
-          Property("Observable", List(ExternalLine(87, -1, -1), ExternalLine(173, -1, -1),
+          ExternalLine(78, -1, -1)), Set(Prop("config", List(ExternalLine(11, -1, -1))),
+          Prop("Observable", List(ExternalLine(87, -1, -1), ExternalLine(173, -1, -1),
             ExternalLine(45, -1, -1), ExternalLine(31, -1, -1), ExternalLine(70, -1, -1))),
-          Property("Disposable", List(ExternalLine(62, -1, -1), ExternalLine(78, -1, -1))))),
+          Prop("Disposable", List(ExternalLine(62, -1, -1), ExternalLine(78, -1, -1))))),
           ExternalType("mongodb.MongoClient",
             List(ExternalLine(10, -1, -1), ExternalLine(33, -1, -1)),
-            Set(Property("connect", List(ExternalLine(33, -1, -1))))), ExternalType("mongodb",
-            List(ExternalLine(7, -1, -1), ExternalLine(10, -1, -1)), Set(Property("MongoClient",
-              List(ExternalLine(10, -1, -1))))))
+            Set(Prop("connect", List(ExternalLine(33, -1, -1))))), ExternalType("mongodb",
+            List(ExternalLine(7, -1, -1), ExternalLine(10, -1, -1)),
+            Set(Prop("MongoClient", List(ExternalLine(10, -1, -1))))))
       assert(actualTypes.exists(actualType => expectedTypes.exists(
         expectedType => actualType.typeName == expectedType.typeName &&
           actualType.lines.forall(expectedType.lines.contains(_)) &&
@@ -119,7 +119,6 @@ class JsParserTest extends FunSuite {
               actualProp.lines.forall(expectedProp.lines.contains(_)))))))
     }
   }
-
 }
 
 class ScalaParserTest extends FunSuite {

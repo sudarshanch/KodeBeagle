@@ -55,10 +55,6 @@ object RepoAnalyzerJob extends Logger {
       }
     }.toOption.getOrElse(Array(KodeBeagleConfig.repoMetaDataHdfsPath))
 
-    val numParts: Int = Try {
-      args(1).toInt
-    }.toOption.getOrElse(10)
-
     val df = sqlContext.read.json(metaDataLoc: _*)
 
     val repoInfos = df.select("id", "name", "full_name", "owner.login",
@@ -123,11 +119,12 @@ object RepoAnalyzerJob extends Logger {
         log.info(s"Repo $login/$repoName does not seem to contain anything java.")
       }
       javarepo.files.foreach(file => {
-        val srchRefEntry = toIndexTypeJson("typereferences", "javaexternal",
-          file.searchableRefs, isToken = false)
-        val metaDataEntry = toJson(file.fileMetaData, isToken = false)
-        val sourceEntry = toJson(
-          new SourceFile(file.repoId, file.repoFileLocation, file.fileContent), isToken = false)
+        val srchRefEntry = toIndexTypeJson("java", "typereference", file.searchableRefs,
+          isToken = false)
+        val metaDataEntry = toIndexTypeJson("java", "filemetadata", file.fileMetaData,
+          isToken = false)
+        val sourceEntry = toIndexTypeJson("java", "sourcefile", SourceFile(file.repoId,
+          file.repoFileLocation, file.fileContent), isToken = false)
 
         srchrefWriter.write(srchRefEntry + "\n")
         metaWriter.write(metaDataEntry + "\n")
@@ -137,10 +134,11 @@ object RepoAnalyzerJob extends Logger {
       Seq(srchrefWriter, srcWriter, metaWriter).foreach(_.close())
     }
 
-    // TODO: whats the more idiomatic way to do this?
-    moveFromLocal(login, repoName, fs)(srcFileName, "sources")
-    moveFromLocal(login, repoName, fs)(srchRefFileName, "tokens")
-    moveFromLocal(login, repoName, fs)(metaFileName, "meta")
+    val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
+
+    moveIndex(srcFileName, "sources")
+    moveIndex(srchRefFileName, "tokens")
+    moveIndex(metaFileName, "meta")
 
     val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
     log.info(s"Executing command: $repoCleanCmd")
@@ -149,9 +147,8 @@ object RepoAnalyzerJob extends Logger {
   }
 
   private def moveFromLocal(login: String, repoName: String, fs: FileSystem)
-                           (idxFileName: String, remote: String) = {
-    fs.moveFromLocalFile(new Path(idxFileName),
-      new Path(s"${KodeBeagleConfig.repoIndicesHdfsPath}$language/$remote/$login~$repoName"))
+                           (indxFileName: String, indxName: String) = {
+    fs.moveFromLocalFile(new Path(indxFileName),
+      new Path(s"${KodeBeagleConfig.repoIndicesHdfsPath}$language/$indxName/$login~$repoName"))
   }
-
 }

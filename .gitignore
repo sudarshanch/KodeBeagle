@@ -10,3 +10,4 @@ lib_managed/
 application.properties
 application.conf
 kodebeagle.log
+core/assembly/

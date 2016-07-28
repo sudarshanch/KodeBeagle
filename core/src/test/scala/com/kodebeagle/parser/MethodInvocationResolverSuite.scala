@@ -40,7 +40,11 @@ class MethodInvocationResolverSuite extends FunSuite with BeforeAndAfterAll{
   test("method invoke test"){
     import scala.collection.JavaConversions._
     val expectedRoureqMethodInvoks=Set("getRoute","getRequest","RoutedRequest")
-    val roureqMethodInvoks=singleClassBindingResolver.get.getMethodInvoks.get("handleResponse").
+
+    val methodDecl = singleClassBindingResolver.get.getDeclaredMethods
+      .find(_.getMethodName == "handleResponse").get
+
+    val roureqMethodInvoks=singleClassBindingResolver.get.getMethodInvoks.get(methodDecl).
       groupBy(_.getTargetType).get("org.apache.http.impl.client.RoutedRequest")
     assert(roureqMethodInvoks.get.size==3)
 

@@ -26,7 +26,7 @@ import scala.util.Try
 import scalariform.utils.Range
 
 trait ScalaIndexEntityHelper {
-  protected def toLine(range: Range)(implicit lines: Lines): Option[Line] = {
+  protected def toLine(range: Range)(implicit lines: Lines): Option[ExternalLine] = {
     val offest = range.offset
     val maybeLineColumn = lines.toLineColumn(offest)
     maybeLineColumn.map { lineColumn =>
@@ -35,11 +35,11 @@ trait ScalaIndexEntityHelper {
     }
   }
 
-  protected def toProperty(prop: (String, List[Range]))(implicit lines: Lines): Property = {
-    Property(prop._1, prop._2.flatMap(toLine(_)))
+  protected def toProperty(prop: (String, List[Range]))(implicit lines: Lines): Prop = {
+    Prop(prop._1, prop._2.flatMap(toLine(_)))
   }
 
-  protected def toType(typeInFunction: TypeInFunction)(implicit lines: Lines): Type
+  protected def toType(typeInFunction: TypeInFunction)(implicit lines: Lines): ExternalType
 
 }
 
