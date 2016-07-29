@@ -35,10 +35,6 @@ public class SingleClassBindingResolver {
 
     private final MethodInvocationResolver resolver = new MethodInvocationResolver();
 
-    public MethodInvocationResolver getResolver() {
-        return resolver;
-    }
-
     public SingleClassBindingResolver(final ASTNode node) {
         rootNode = node;
 

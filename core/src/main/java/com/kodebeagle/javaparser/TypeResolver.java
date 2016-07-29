@@ -225,15 +225,18 @@ public class TypeResolver extends ASTVisitor {
 				nameOfType = getParametrizedType((ParameterizedType) type);
 			} else if (type.isArrayType()) {
 				final ArrayType array = (ArrayType) type;
-				nameOfType = getNameOfType(array.getElementType()) + "[]";
+				nameOfType = getNameOfType(array.getElementType()) /*+ "[]"*/;
 			} else if (type.isUnionType()) {
+                // TODO: this is used for exceptions till now
+                // So we will just capture the first type that we encounter
 				final UnionType uType = (UnionType) type;
 				final StringBuffer sb = new StringBuffer();
 				for (final Object unionedType : uType.types()) {
 					sb.append(getNameOfType(((Type) unionedType)));
-					sb.append(" | ");
+                    break;
+					// sb.append(" | ");
 				}
-				sb.delete(sb.length() - 3, sb.length());
+				// sb.delete(sb.length() - 3, sb.length());
 				nameOfType = sb.toString();
 			} else if (type.isWildcardType()) {
 				final WildcardType wType = (WildcardType) type;
@@ -246,23 +249,29 @@ public class TypeResolver extends ASTVisitor {
 		return nameOfType;
 	}
 
+    private String getParametrizedType(final ParameterizedType type) {
+        return getParametrizedType(type, false);
+    }
+
 	/**
 	 * @param type
 	 * @return
 	 */
-	private String getParametrizedType(final ParameterizedType type) {
+	private String getParametrizedType(final ParameterizedType type, final Boolean innerTypes) {
 		final StringBuffer sb = new StringBuffer(getFullyQualifiedNameFor(type
 				.getType().toString()));
 
-		sb.append("<");
-		for (final Object typeArg : type.typeArguments()) {
-			final Type arg = (Type) typeArg;
-			final String argString = getNameOfType(arg);
-			sb.append(argString);
-			sb.append(",");
+		if(innerTypes) {
+			sb.append("<");
+			for (final Object typeArg : type.typeArguments()) {
+				final Type arg = (Type) typeArg;
+				final String argString = getNameOfType(arg);
+				sb.append(argString);
+				sb.append(",");
+			}
+			sb.deleteCharAt(sb.length() - 1);
+			sb.append(">");
 		}
-		sb.deleteCharAt(sb.length() - 1);
-		sb.append(">");
 		return sb.toString();
 	}
 

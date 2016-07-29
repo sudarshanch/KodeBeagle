@@ -33,6 +33,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+
 import x.abc.Something
 
 import org.apache.commons.logging.Log;
@@ -93,61 +94,95 @@ import org.apache.http.protocol.HttpRequestExecutor;
 import org.apache.http.util.Args;
 import org.apache.http.util.EntityUtils;
 
-public class DefaultRequestDirector<ABC> extends ABCD<XYZ,TYZ> implements RequestDirector<JKL>, Serializable<T> {
-    class DEF{
-        class GHI<bnm>{}
+public class DefaultRequestDirector<ABC> extends ABCD<XYZ, TYZ> implements RequestDirector<JKL>, Serializable<T> {
+    class DEF {
+        class GHI<bnm> {
+        }
     }
+
     private final Log log;
 
-    /** The connection manager. */
+    /**
+     * The connection manager.
+     */
     protected final ClientConnectionManager connManager;
 
-    /** The route planner. */
+    /**
+     * The route planner.
+     */
     protected final HttpRoutePlanner routePlanner;
 
-    /** The connection re-use strategy. */
+    /**
+     * The connection re-use strategy.
+     */
     protected final ConnectionReuseStrategy reuseStrategy;
 
-    /** The keep-alive duration strategy. */
+    /**
+     * The keep-alive duration strategy.
+     */
     protected final ConnectionKeepAliveStrategy keepAliveStrategy;
 
-    /** The request executor. */
+    /**
+     * The request executor.
+     */
     protected final HttpRequestExecutor requestExec;
 
-    /** The HTTP protocol processor. */
+    /**
+     * The HTTP protocol processor.
+     */
     protected final HttpProcessor httpProcessor;
 
-    /** The request retry handler. */
+    /**
+     * The request retry handler.
+     */
     protected final HttpRequestRetryHandler retryHandler;
 
-    /** The redirect handler. */
+    /**
+     * The redirect handler.
+     */
     @Deprecated
     protected final RedirectHandler redirectHandler;
 
-    /** The redirect strategy. */
+    /**
+     * The redirect strategy.
+     */
     protected final RedirectStrategy redirectStrategy;
 
-    /** The target authentication handler. */
+    /**
+     * The target authentication handler.
+     */
     @Deprecated
     protected final AuthenticationHandler targetAuthHandler;
 
-    /** The target authentication handler. */
+    /**
+     * The target authentication handler.
+     */
     protected final AuthenticationStrategy targetAuthStrategy;
 
-    /** The proxy authentication handler. */
+    /**
+     * The proxy authentication handler.
+     */
     @Deprecated
     protected final AuthenticationHandler proxyAuthHandler;
 
-    /** The proxy authentication handler. */
+    /**
+     * The proxy authentication handler.
+     */
     protected final AuthenticationStrategy proxyAuthStrategy;
 
-    /** The user token handler. */
+    /**
+     * The user token handler.
+     */
     protected final UserTokenHandler userTokenHandler;
 
-    /** The HTTP parameters. */
+    /**
+     * The HTTP parameters.
+     */
     protected final HttpParams params;
 
-    /** The currently allocated connection. */
+    /**
+     * The currently allocated connection.
+     */
     protected ManagedClientConnection managedConn;
 
     protected final AuthState targetAuthState;
@@ -168,23 +203,21 @@ public class DefaultRequestDirector<ABC> extends ABCD<XYZ,TYZ> implements Reques
     /**
      * Analyzes a response to check need for a followup.
      *
-     * @param roureq
-     *            the request and route.
-     * @param response
-     *            the response to analayze
-     * @param context
-     *            the context used for the current request execution
+     * @param roureq   the request and route.
+     * @param response the response to analayze
+     * @param context  the context used for the current request execution
      * @return the followup request and route if there is a followup, or
-     *         {@code null} if the response should be returned as is
-     * @throws HttpException
-     *             in case of a problem
-     * @throws IOException
-     *             in case of an IO problem
+     * {@code null} if the response should be returned as is
+     * @throws HttpException in case of a problem
+     * @throws IOException   in case of an IO problem
      */
-    public DefaultRequestDirector(){
+    public DefaultRequestDirector() {
 
     }
-    void test() {}
+
+    void test() {
+    }
+
     protected RoutedRequest handleResponse(final RoutedRequest roureq,
                                            final HttpResponse response, final HttpContext context)
             throws HttpException, IOException {
@@ -275,19 +308,20 @@ public class DefaultRequestDirector<ABC> extends ABCD<XYZ,TYZ> implements Reques
         }
         return null;
     }
-    enum InternalEnum implements C{
-        X(10,20),Y;
 
-        X(int i,int j){ X;}
+    enum InternalEnum implements SuperEnum {
+        X(10, 20), Y;
 
-        public void someMethod(){
+        X(int i, int j) {
+            X;
+        }
+
+        public void someMethod() {
             X;
         }
     }
 }
-enum ExternalEnum{
 
-}
-class ABC {
+enum ExternalEnum {
 
 }
