@@ -144,6 +144,9 @@ class JavaASTParserSuite extends FunSuite with BeforeAndAfterAll with JavaParser
       v.foreach(e => {
         isValidType(e.getTargetType)
         isValidIdentifier(e.getMethodName)
+        if(!e.getConstructor) isValidIdentifier(e.getTarget)
+        isValidType(Option(e.getReturnType).getOrElse("var"))
+        if(!e.getConstructor) isValidIdentifier(e.getTarget)
       })
     }
     })

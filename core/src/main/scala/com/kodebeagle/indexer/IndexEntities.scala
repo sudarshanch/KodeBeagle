@@ -19,6 +19,8 @@ package com.kodebeagle.indexer
 
 import java.util
 
+import scala.collection.mutable
+
 case class Line(line: Int, startCol: Int, endCol: Int)
 
 trait Property
@@ -43,7 +45,7 @@ case class PayloadType(name: String, props: Set[PayloadProperty]) extends Type {
   type T = PayloadProperty
 }
 
-case class Payload(types: Set[PayloadType])
+case class Payload(types: Set[PayloadType], score: Long, file: String)
 
 case class Context(text: String, types: Set[ContextType])
 
@@ -67,34 +69,50 @@ object Repository {
 }
 
 /* File Metadata related entities */
-case class RepoSource(repoId: Long, fileName: String, fileContent: String)
+case class TypeDeclaration(fileType: String, loc: Line)
 
-case class TypeDeclaration(fileType: String, loc: String)
+// for each import -- its fqt, its var locations, its methods and their locations
+case class ExternalRef(fqt: String, vars: Set[Line], methods: Set[MethodTypeLocation])
+case class MethodTypeLocation(loc: Set[Line], method: String, argTypes: List[String])
 
-case class ExternalRef(id: Int, fqt: String)
+// method definitions in this file
+case class MethodDefinition(loc: Line, method: String, argTypes: List[String])
 
-case class VarTypeLocation(loc: String, id: Int)
-
-case class MethodTypeLocation(loc: String, id: Int, method: String, argTypes: List[String])
-
-case class MethodDefinition(loc: String, method: String, argTypes: List[String])
-
-case class InternalRef(childLine: String, parentLine: String)
+// p = ParentLine, c = all internal child refs of that parent
+case class InternalRef(p: Line, c: Set[Line])
 
 case class SuperTypes(superClass: Map[String, String], interfaces: Map[String, List[String]])
 
-case class FileMetaData(repoId: Long, fileName: String, superTypes: SuperTypes,
-                        fileTypes: util.List[TypeDeclaration],
+case class FileMetaData(repoId: Long, fileName: String,
+                        superTypes: SuperTypes,
+                        fileTypes: List[TypeDeclaration],
                         externalRefList: List[ExternalRef],
-                        typeLocationList: List[VarTypeLocation],
-                        methodTypeLocation: List[MethodTypeLocation],
                         methodDefinitionList: List[MethodDefinition],
                         internalRefList: List[InternalRef])
 
 case class JavaFileIndices(searchableRefs: Set[TypeReference],
                            fileMetaData: FileMetaData, sourceFile: SourceFile, repo: String)
 
+case class MethodType(returnType: String, methodName: String, argTypes: List[String],
+                      isDeclared: Boolean)
 
+case class TypesInFile(repoName: String, fileName: String,
+                       // imported types -> (varnames, methods)
+                       usedTypes: Map[String, (Set[String], Set[MethodType])],
+                       // declared types -> methods
+                       declaredTypes: Map[String, Set[MethodType]])
 
+// For Type aggregations
+case class TypeAggregation(name: String, score: Int, context: Set[String],
+                           typeSuggest: CompletionSuggest,
+                           methodSuggest: PayloadCompletionSuggest,
+                           searchText: Set[String], vars: Set[VarCount],
+                           methods: Set[MethodCount])
 
+case class MethodCount(name: String, params: Int, count: Int)
 
+case class CompletionSuggest(input: Set[String], output: String, weight: Int);
+
+case class PayloadCompletionSuggest(input: Set[String], weight: Int, payload: String)
+
+case class VarCount(name: String, count: Int)

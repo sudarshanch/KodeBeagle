@@ -165,7 +165,7 @@ public class MethodInvocationResolver extends TypeResolver {
         String targetType = translateTargetToType(target, scopeBindings);
         // Add only if you could guess the type of target, else ignore.
         // TODO: In case of a method in super type, this will still infer it as in "this".
-        if(!targetType.isEmpty()){
+        if (!targetType.isEmpty()) {
             List<String> argTypes = translateArgsToTypes(args, scopeBindings);
             if (!methodStack.empty()) {
                 MethodDeclaration currentMethod = methodStack.peek();
@@ -221,7 +221,7 @@ public class MethodInvocationResolver extends TypeResolver {
             ASTNode grandParent = parent.getParent();
             if (grandParent instanceof VariableDeclarationStatement) {
                 Type typ = ((VariableDeclarationStatement) grandParent).getType();
-                return getFullyQualifiedNameFor(typ.toString());
+                return removeSpecialSymbols(getFullyQualifiedNameFor(typ.toString()));
             }
         }
         return null;
@@ -234,6 +234,8 @@ public class MethodInvocationResolver extends TypeResolver {
     }
 
     private MethodDecl getMethodDecl(MethodDeclaration node) {
+        String qualifiedTypeName = currentPackage + "."
+                + Joiner.on(".").skipNulls().join(typesInFile);
         SimpleName nameNode = node.getName();
         String methodName = nameNode.toString();
         String returnType = "";
@@ -257,7 +259,7 @@ public class MethodInvocationResolver extends TypeResolver {
             }
 
         }
-        return new MethodDecl(methodName, returnType, nameNode
+        return new MethodDecl(methodName, qualifiedTypeName, returnType, nameNode
                 .getStartPosition(), params);
     }
 
@@ -284,11 +286,11 @@ public class MethodInvocationResolver extends TypeResolver {
     private String getTarget(Expression expression) {
         String target = "";
         if (expression != null) {
-            target = expression.toString();
+            target = expression.toString().trim();
             if (target.isEmpty() || target.equals("this")) {
                 return "this";
             }
-            if (!isValidIdentifier(target)) {
+            if (!target.isEmpty() && !isValidIdentifier(target)) {
                 return "";
             }
         }
@@ -366,14 +368,16 @@ public class MethodInvocationResolver extends TypeResolver {
 
     public static class MethodDecl {
         private String methodName;
+        private String enclosingType;
         private String returnType;
         private int location;
         private Map<String, String> args;
 
-        public MethodDecl(String methodName, String returnType, int location,
+        public MethodDecl(String methodName, String enclosingType, String returnType, int location,
                           Map<String, String> args) {
             super();
             this.methodName = methodName;
+            this.enclosingType = enclosingType;
             this.returnType = returnType;
             this.location = location;
             this.args = args;
@@ -391,15 +395,13 @@ public class MethodInvocationResolver extends TypeResolver {
             return location;
         }
 
-        public Map<String, String> getArgs() {
-            return args;
+        public String getEnclosingType() {
+            return enclosingType;
         }
 
-        @Override
-        public String toString() {
-            return "MethodDecl [methodName=" + methodName + ", argNum="
-                    + ", location=" + location + ", argTypes="
-                    + args + "]";
+        // Name -> Type
+        public Map<String, String> getArgs() {
+            return args;
         }
 
         @Override
@@ -410,18 +412,32 @@ public class MethodInvocationResolver extends TypeResolver {
             MethodDecl that = (MethodDecl) o;
 
             if (location != that.location) return false;
-            if (methodName != null ? !methodName.equals(that.methodName) : that.methodName != null) return false;
-            if (returnType != null ? !returnType.equals(that.returnType) : that.returnType != null) return false;
-            return args != null ? args.equals(that.args) : that.args == null;
+            if (!methodName.equals(that.methodName)) return false;
+            if (!enclosingType.equals(that.enclosingType)) return false;
+            if (!returnType.equals(that.returnType)) return false;
+            return args.equals(that.args);
+
         }
 
         @Override
         public int hashCode() {
-            int result = methodName != null ? methodName.hashCode() : 0;
-            result = 31 * result + (returnType != null ? returnType.hashCode() : 0);
+            int result = methodName.hashCode();
+            result = 31 * result + enclosingType.hashCode();
+            result = 31 * result + returnType.hashCode();
             result = 31 * result + location;
-            result = 31 * result + (args != null ? args.hashCode() : 0);
+            result = 31 * result + args.hashCode();
             return result;
+        }
+
+        @Override
+        public String toString() {
+            return "MethodDecl{" +
+                    "methodName='" + methodName + '\'' +
+                    ", enclosingType='" + enclosingType + '\'' +
+                    ", returnType='" + returnType + '\'' +
+                    ", location=" + location +
+                    ", args=" + args +
+                    '}';
         }
     }
 

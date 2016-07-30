@@ -19,177 +19,278 @@
 # This script is a helper script to upload spark generated output to elasticSearch.
 # DISCLAIMER: There are no defensive checks please use it carefully.
 
-echo "Clearing kodebeagle related indices from elasticsearch."
-curl -XDELETE 'http://localhost:9201/kodebeagle/'
-curl -XDELETE 'http://localhost:9201/sourcefile/'
-curl -XDELETE 'http://localhost:9201/repository/'
-curl -XDELETE 'http://localhost:9201/importsmethods/'
-curl -XDELETE 'http://localhost:9201/statistics/'
-
-# create a kodebeagle index
-curl -XPUT 'http://localhost:9201/kodebeagle/'
+echo "Clearing kodebeagle related java indices from elasticsearch."
+curl -XDELETE 'http://localhost:9200/java/'
 
 # Updating mappings and types for kodebeagle index.
-
-curl -XPUT 'localhost:9201/kodebeagle/custom/_mapping' -d '
-{
-    "custom" : {
-        "properties" : {
-                "file" : { "type" : "string", "index" : "no" },
-                "tokens": {
-                        "type": "nested",
-                        "include_in_parent": true,
-                        "properties": {
-                            "importName": {
-                                "type": "string",
-                                "index" : "not_analyzed"
-                            },
-                            "importExactName": {
-                                "type": "string",
-                                "index" : "no"
-                            },
-                            "lineNumbers": {
-                                "type": "long",
-                                "index" : "no"
-                            }
-                        }
-                    },
-                "score" : { "type" : "integer", "index" : "not_analyzed" }
-        }
-    }
+curl -XPOST localhost:9200/java/ -d '{
+	"settings": {
+		"index": {
+			"number_of_shards": 3,
+			"number_of_replicas": 1
+		},
+		"analysis": {
+			"analyzer": {
+				"ShingleAnalyzer": {
+					"tokenizer": "standard",
+					"filter": [
+						"standard",
+						"camel_filter",
+						"lowercase",
+						"filter_shingle"
+					]
+				},
+				"camel": {
+					"type": "pattern",
+					"pattern": "([^\\p{L}\\d]+)|(?<=\\D)(?=\\d)|(?<=\\d)(?=\\D)|(?<=[\\p{L}&&[^\\p{Lu}]])(?=\\p{Lu})|(?<=\\p{Lu})(?=\\p{Lu}[\\p{L}&&[^\\p{Lu}]])"
+				},
+				"keyword_analyzer": {
+					"type": "custom",
+					"tokenizer": "keyword",
+					"filter": ["lowercase"]
+				}
+			},
+			"filter": {
+				"filter_shingle": {
+					"type": "shingle",
+					"max_shingle_size": 5,
+					"min_shingle_size": 2,
+					"output_unigrams": true
+				},
+				"camel_filter": {
+					"type": "word_delimiter",
+					"generate_number_parts": false,
+					"stem_english_possessive": false,
+					"split_on_numerics": false
+				}
+			}
+		}
+	}
 }'
 
-curl -XPUT 'localhost:9201/sourcefile' -d '{
- "mappings": {
-    "typesourcefile" : {
-        "properties" : {
-           "repoId" : { "type" : "integer", "index" : "not_analyzed" },
-           "fileName": { "type": "string", "index" : "not_analyzed" },
-           "fileContent": { "type": "string", "index" : "no" }
-        }
-      }
-    }
+curl -X PUT localhost:9200/java/typereference/_mapping -d '{
+	"typereference": {
+		"properties": {
+			"file": {
+				"type": "string",
+				"index": "not_analyzed"
+			},
+			"payload": {
+				"properties": {
+					"types": {
+						"properties": {
+							"name": {
+								"type": "string",
+								"index": "no"
+							},
+							"props": {
+								"properties": {
+									"name": {
+										"type": "string",
+										"index": "no"
+									},
+									"lines": {
+										"type": "long",
+										"index": "no"
+									}
+								}
+							}
+						}
+					},
+					"score": {
+						"type": "long",
+						"index": "no"
+					},
+					"file": {
+						"type": "string",
+						"index": "no"
+					}
+				}
+			},
+			"contexts": {
+				"properties": {
+					"types": {
+						"type": "nested",
+						"include_in_parent": true,
+						"properties": {
+							"name": {
+								"type": "string",
+								"analyzer": "keyword_analyzer"
+							},
+							"props": {
+								"type": "string",
+								"analyzer": "keyword_analyzer"
+							}
+						}
+					},
+					"text": {
+						"type": "string",
+						"analyzer": "simple"
+					}
+				}
+			}
+		}
+	}
 }'
 
-curl -XPUT 'localhost:9201/repotopic' -d '{
-    "mappings" : {
-      "typerepotopic" : {
-        "properties" : {
-          "defaultBranch" : {
-            "type" : "string"
-          },
-          "fork" : {
-            "type" : "boolean"
-          },
-          "id" : {
-            "type" : "long"
-          },
-          "language" : {
-            "type" : "string"
-          },
-          "login" : {
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-	  "files":   { 
-              "type":       "object",
-              "properties": {
-                "file":     { "type": "string" },
-                "klscore":    { "type": "double" }
-              }
-          },
-	  "topic":   { 
-              "type":         "object",
-              "properties": {
-                "term":     { "type": "string" },
-                "freq":    { "type": "long" }
-              }
-          }
-        }
-      }
-    }
-  }'
+curl -X PUT localhost:9200/java/aggregation/_mapping -d '{
+	"aggregation": {
+		"properties": {
+			"name": {
+				"type": "string"
+			},
+			"score": {
+				"type": "long"
+			},
+			"context": {
+				"type": "string"
+			},
+			"vars": {
+				"type": "nested",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"count": {
+						"type": "long"
+					}
+				}
+			},
+			"methods": {
+				"type": "nested",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"params": {
+						"type": "long"
+					},
+					"count": {
+						"type": "long"
+					}
+				}
+			},
+			"typeSuggest": {
+				"type": "completion",
+				"analyzer": "simple",
+				"payloads": true
+			},
+			"methodSuggest": {
+				"type": "completion",
+				"analyzer": "simple",
+				"payloads": true
+			},
+			"searchText": {
+				"analyzer": "ShingleAnalyzer",
+				"type": "string"
+			}
+		}
+	}
+}'
 
-
-curl -XPUT 'http://localhost:9201/importsmethods/' -d '{
-    "mappings": {
-        "typeimportsmethods": {
-            "properties": {
-                "file": {
-                    "type": "string",
-                    "index": "no"
-                },
-                "tokens": {
-                    "type": "nested",
-                    "include_in_parent": true,
-                    "properties": {
-                        "importName": {
-                            "type": "string",
-                            "index": "not_analyzed"
-                        },
-                        "importExactName": {
-                            "type": "string",
-                            "index": "no"
-                        },
-                        "lineNumbers": {
-                            "properties": {
-                                "endColumn": {
-                                    "type": "long"
-                                },
-                                "lineNumber": {
-                                    "type": "long"
-                                },
-                                "startColumn": {
-                                    "type": "long"
-                                }
-                            }
-                        },
-                        "methodAndLineNumbers": {
-                            "type": "nested",
-                            "include_in_parent": true,
-                            "properties": {
-                                "lineNumbers": {
-                                    "properties": {
-                                        "endColumn": {
-                                            "type": "long"
-                                        },
-                                        "lineNumber": {
-                                            "type": "long"
-                                        },
-                                        "startColumn": {
-                                            "type": "long"
-                                        }
-                                    }
-                                },
-                                "methodName": {
-                                    "type": "string",
-                                    "index": "not_analyzed"
-                                }
-                            }
-                        }
-                    }
-                },
-                "repoId": {
-                    "type": "long"
-                },
-                "language": {
-                    "type": "string",
-                    "index": "not_analyzed"
-                },
-                "score": {
-                    "type": "integer",
-                    "index": "not_analyzed"
-                }
+curl -XPUT localhost:9200/java/filemetadata/_mapping -d '{
+    "filemetadata": {
+        "properties": {
+            "repoId": {
+				"type": "integer",
+				"index": "not_analyzed"
+			},
+			"fileName": {
+				"type": "string",
+				"index": "not_analyzed"
+			},
+			"superTypes": {
+                "type" : "object",
+                "enabled" : false
+            },
+            "fileTypes": {
+                "type" : "object",
+                "enabled" : false
+            },
+            "externalRefList": {
+                "type" : "object",
+                "enabled" : false
+            },
+            "methodDefinitionList": {
+                "type" : "object",
+                "enabled" : false
+            },
+            "internalRefList": {
+                "type" : "object",
+                "enabled" : false
             }
         }
     }
 }'
 
+curl -XPUT localhost:9200/java/sourcefile/_mapping -d '{
+	"sourcefile": {
+		"properties": {
+			"repoId": {
+				"type": "integer",
+				"index": "not_analyzed"
+			},
+			"fileName": {
+				"type": "string",
+				"index": "not_analyzed"
+			},
+			"fileContent": {
+				"type": "string",
+				"index": "no"
+			}
+		}
+	}
+}'
 
-for f in `find $1 -name 'part*'`
+curl -XPUT localhost:9200/java/repotopic/_mapping -d '{
+	"repotopic": {
+		"properties": {
+			"defaultBranch": {
+				"type": "string"
+			},
+			"fork": {
+				"type": "boolean"
+			},
+			"id": {
+				"type": "long"
+			},
+			"language": {
+				"type": "string"
+			},
+			"login": {
+				"type": "string"
+			},
+			"name": {
+				"type": "string"
+			},
+			"files": {
+				"type": "object",
+				"properties": {
+					"file": {
+						"type": "string"
+					},
+					"klscore": {
+						"type": "double"
+					}
+				}
+			},
+			"topic": {
+				"type": "object",
+				"properties": {
+					"term": {
+						"type": "string"
+					},
+					"freq": {
+						"type": "long"
+					}
+				}
+			}
+		}
+	}
+}'
+
+for f in `find $1 -name '*'`
 do
     echo "uploading $f to elasticsearch."
-    curl -s -XPOST 'localhost:9201/_bulk' --data-binary '@'$f >/dev/null
+    curl -s -XPOST 'localhost:9200/_bulk' --data-binary '@'$f >/dev/null
 done

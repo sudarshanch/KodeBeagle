@@ -59,8 +59,8 @@ object IndexJobForJS {
         jsFiles.map(mapToSourceFile(repo, _)).toSet)
     }.flatMap {
       case (Some(repository), jsIndices, sourceFiles) =>
-        Seq(toIndexTypeJson("typereference", "jsexternal", jsIndices, isToken = false),
-          toJson(repository, isToken = false), toJson(sourceFiles, isToken = false))
+        Seq(toIndexTypeJson("typereference", "jsexternal", jsIndices),
+          toJson(repository), toJson(sourceFiles))
       case _ => Seq()
     }.saveAsTextFile(KodeBeagleConfig.sparkIndexOutput)
   }

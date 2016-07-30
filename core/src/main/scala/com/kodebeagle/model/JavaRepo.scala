@@ -17,13 +17,10 @@
 
 package com.kodebeagle.model
 
-import java.util
-
 import com.kodebeagle.indexer._
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import com.kodebeagle.javaparser.{JavaASTParser, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
-import com.kodebeagle.util.Utils
 import org.eclipse.jdt.core.dom.CompilationUnit
 
 import scala.util.Try
@@ -62,6 +59,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
   private var _repoPath: Option[String] = None
 
+  private var _typesInFile: Option[TypesInFile] = None
+
   def searchableRefs: TypeReference = {
     getOrCompute(_searchableRefs, () => {
       parse()
@@ -90,6 +89,13 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     })
   }
 
+  def typesInFile: TypesInFile = {
+    getOrCompute(_typesInFile, () => {
+      parse()
+      _typesInFile.get
+    })
+  }
+
   override def fileName: String = baseFile.fileName
 
   override def sloc: Int = baseFile.sloc
@@ -113,6 +119,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     * @return
     */
   private def parse() = {
+    import JavaFileInfo._
+
     import scala.collection.JavaConversions._
 
     val parser: JavaASTParser = new JavaASTParser(true)
@@ -126,68 +134,30 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     }.toOption
 
     if (cu.isEmpty) {
-      import collection.JavaConverters._
       log.error(s"Compilation unit is null for $fileName")
-      _imports = Option(Set.empty)
-      _searchableRefs = None
-      _fileMetaData = Option(FileMetaData(repoId, fileName,
-        SuperTypes(Map("java.lang.Object" -> "java.lang.Object"),
-          Map("java.lang.Object" -> List.empty)),
-        List.empty[TypeDeclaration], List.empty, List.empty, List.empty,
-        List.empty, List.empty))
+      _imports = _emptyImports
+      _searchableRefs = emptySearchableRefs(repoFileLocation)
+      _fileMetaData = emptyFileMetadata(repoId,repoFileLocation)
+      _typesInFile = emptyTypesInFile(repoPath,repoFileLocation)
     } else {
       val scbr: SingleClassBindingResolver = new SingleClassBindingResolver(cu.get)
       scbr.resolve()
 
       val nodeVsType = scbr.getTypesAtPosition
       val score = baseFile.githubRepoInfo.stargazersCount
-      val externalTypeRefs = extractTypeReference(scbr, cu.get, score)
-      val fileMetaData = FileMetaDataIndexer.generateMetaData(scbr, cu.get, repoId, fileName)
+      val externalTypeRefs = ExternalRefsIndexHelper.extractTypeReference(scbr, cu.get,
+        score, repoFileLocation)
+      val fileMetaData = FileMetaDataIndexHelper.generateMetaData(scbr, cu.get,
+        repoId, repoFileLocation)
 
       _imports = Option(scbr.getImports.toSet)
       _searchableRefs = Option(externalTypeRefs)
       _fileMetaData = Option(fileMetaData)
+      _typesInFile = Option(TypesInFile(repoPath, repoFileLocation,
+        TypesInFileIndexHelper.usedTypesInFile(scbr),
+        TypesInFileIndexHelper.declaredTypesInFile(scbr)))
     }
 
-  }
-
-  private def extractTypeReference(scbr: SingleClassBindingResolver,
-                                   cu: CompilationUnit, score: Long): TypeReference = {
-    val contexts = generateContexts(scbr)
-    val payload = generatePayload(scbr, cu)
-    TypeReference(contexts, payload, score, repoFileLocation)
-  }
-
-
-  def generateContexts(scbr: SingleClassBindingResolver): Set[Context] = {
-    import scala.collection.JavaConversions._
-    scbr.getMethodInvoks.map { case (methodDecl, methodCalls) =>
-      // for every method in the class
-      val contextTypes = methodCalls.groupBy(_.getTargetType)
-        // then map the grp to:
-        .map { case (typ, grp) =>
-        val props = grp.groupBy(_.getMethodName).keys.map(ContextProperty).toSet
-        ContextType(typ, props)
-      }.toSet
-      Context(Utils.generateMethodSignature(methodDecl), contextTypes)
-    }.toSet
-  }
-
-
-  def generatePayload(scbr: SingleClassBindingResolver, cu: CompilationUnit): Payload = {
-    import scala.collection.JavaConversions._
-    val payloadTypes = scbr.getMethodInvoks.values().flatten
-      .groupBy(_.getTargetType).map { case (typ, grp) =>
-      val propSet = grp.groupBy(_.getMethodName).map { case (prop, pgrp) =>
-        PayloadProperty(prop, pgrp.map(t => {
-          val line = cu.getLineNumber(t.getLocation)
-          val col = cu.getColumnNumber(t.getLocation)
-          Line(line, col, col + t.getLength)
-        }).toSet)
-      }.toSet
-      PayloadType(typ, propSet)
-    }.toSet
-    Payload(payloadTypes)
   }
 }
 
@@ -198,5 +168,32 @@ class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics 
   override def fileCount: Int = repoStatistics.fileCount
 
   override def size: Long = repoStatistics.size
+}
+
+object JavaFileInfo {
+
+  val _emptyContextSet = Set.empty[Context]
+  val _emptyPayLoadTypeSet = Set.empty[PayloadType]
+  val _emptyTypeDeclarationList = List.empty[TypeDeclaration]
+  val _emptyExtRefList = List.empty[ExternalRef]
+  val _emptyInternalRefList = List.empty[InternalRef]
+  val _emptyMethodTypeLocList = List.empty[MethodTypeLocation]
+  val _emptyMethodDefLocList = List.empty[MethodDefinition]
+  val _emptyDeclaredTypeMap = Map.empty[String,Set[MethodType]]
+  val _emptyUsedTypesMap = Map.empty[String,(Set[String],Set[MethodType])]
+  val _emptyImports: Option[Set[String]] = Option(Set.empty)
+  val _emptySuperTypes = SuperTypes(Map.empty, Map.empty)
+
+  def emptySearchableRefs(repoFileLocation: String): Option[TypeReference] =
+    Option(TypeReference(_emptyContextSet, Payload(_emptyPayLoadTypeSet,
+      0L, repoFileLocation), 0L, repoFileLocation))
+
+  def emptyFileMetadata(repoId: Long, repoFileLocation: String): Option[FileMetaData] =
+    Option(FileMetaData(repoId, repoFileLocation, _emptySuperTypes,_emptyTypeDeclarationList,
+      _emptyExtRefList, _emptyMethodDefLocList, _emptyInternalRefList))
+
+  def emptyTypesInFile(repoPath: String, repoFileLocation: String): Option[TypesInFile] =
+    Option(TypesInFile(repoPath, repoFileLocation,_emptyUsedTypesMap, _emptyDeclaredTypeMap))
+
 }
 

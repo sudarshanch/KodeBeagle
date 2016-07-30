@@ -104,7 +104,7 @@ object SparkIndexJobHelper {
           toStatistics(tSloc, tCount, tSize)), tPkgs))
       }.cache()
     aggregateRDD.map(_._2._1.getOrElse(Repository.invalid)).filter(x => x != Repository.invalid)
-      .flatMap(repo => Seq(toJson(repo, isToken = false)))
+      .flatMap(repo => Seq(toJson(repo)))
       .saveAsTextFile(KodeBeagleConfig.sparkIndexOutput + batch + "repoIndex")
     aggregateRDD.collectAsMap().toMap
   }
@@ -120,21 +120,22 @@ object SparkIndexJobHelper {
     Try(f.stripSuffix(".zip").split("~").tail.head).toOption
   }
 
-  def toJson[T <: AnyRef <% Product with Serializable](t: Set[T], isToken: Boolean): String = {
-    (for (item <- t) yield toJson(item, addESHeader = true, isToken = isToken)).mkString("\n")
+  def toJson[T <: AnyRef <% Product with Serializable](t: Set[T]): String = {
+    (for (item <- t) yield toJson(item)).mkString("\n")
   }
 
   def toIndexTypeJson[T <: AnyRef <% Product with Serializable](indexName: String,
-                                                                typeName: String, t: Set[T],
-                                                                isToken: Boolean): String = {
-    (for (item <- t) yield toIndexTypeJson(indexName, typeName,
-      item, esHeader = true, isToken = isToken)).mkString("\n")
+                                                                typeName: String, t: Set[T]
+                                                               ): String = {
+    (for (item <- t) yield toIndexTypeJson(indexName, typeName,item)).mkString("\n")
   }
+
+  case class IndexHeader(index: IndexValue)
+  case class IndexValue(_index: String, _type: String, _id: String)
 
   def toIndexTypeJson[T <: AnyRef <% Product with Serializable](indexName: String,
                                                                 typeName: String, t: T,
-                                                                esHeader: Boolean = true,
-                                                                isToken: Boolean = false
+                                                                idopt: Option[String] = None
                                                                ): String = {
     import org.json4s._
     import org.json4s.jackson.Serialization
@@ -142,31 +143,21 @@ object SparkIndexJobHelper {
 
     implicit val formats = Serialization.formats(NoTypeHints) +
       new LineSerializer + new ContextPropertySerializer
-
-    if (esHeader && isToken) {
-      s"""|{ "index" : { "_index" : "$indexName", "_type" : "$typeName" } }
-          | """.stripMargin + write(t)
-    } else if (esHeader) {
-      s"""|{ "index" : { "_index" : "$indexName", "_type" : "$typeName" } }
-          |""".stripMargin + write(t)
-    } else "" + write(t)
+    val header = idopt match {
+      case None => s"""{ "index" : {"_index" : "$indexName", "_type" : "$typeName" }"""
+      case Some(id) => write(IndexHeader(IndexValue(indexName, typeName, id)))
+    }
+    header + "\n" + write(t)
   }
 
-  def toJson[T <: AnyRef <% Product with Serializable](t: T, addESHeader: Boolean = true,
-                                                       isToken: Boolean = false): String = {
+  def toJson[T <: AnyRef <% Product with Serializable](t: T): String = {
     import org.json4s._
     import org.json4s.jackson.Serialization
     import org.json4s.jackson.Serialization.write
-    implicit val formats = Serialization.formats(NoTypeHints)
+    implicit val formats = Serialization.formats(NoTypeHints) +
+      new LineSerializer + new ContextPropertySerializer
     val indexName = t.productPrefix.toLowerCase
-    if (addESHeader && isToken) {
-      """|{ "index" : { "_index" : "kodebeagle", "_type" : "custom" } }
-        | """.stripMargin + write(t)
-    } else if (addESHeader) {
-      s"""|{ "index" : { "_index" : "$indexName", "_type" : "type$indexName" } }
-          |""".stripMargin + write(t)
-    } else "" + write(t)
-
+    "" + write(t)
   }
 
   class LineSerializer extends CustomSerializer[Line](format => ({

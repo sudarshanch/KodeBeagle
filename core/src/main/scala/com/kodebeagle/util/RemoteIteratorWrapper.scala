@@ -18,6 +18,7 @@
 package com.kodebeagle.util
 
 import org.apache.hadoop.fs.RemoteIterator
+import scala.language.implicitConversions
 
 case class RemoteIteratorWrapper[T](underlying: RemoteIterator[T]) extends Iterator[T] {
 
