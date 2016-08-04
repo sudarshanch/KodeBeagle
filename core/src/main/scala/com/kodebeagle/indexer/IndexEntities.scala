@@ -23,19 +23,9 @@ import scala.collection.mutable
 
 case class Line(line: Int, startCol: Int, endCol: Int)
 
-trait Property
-
 case class ContextProperty(name: String) extends Property
 
 case class PayloadProperty(name: String, lines: Set[Line]) extends Property
-
-trait Type {
-  type T <: Property
-
-  def name: String
-
-  def props: Set[T]
-}
 
 case class ContextType(name: String, props: Set[ContextProperty]) extends Type {
   type T = ContextProperty
@@ -116,3 +106,9 @@ case class CompletionSuggest(input: Set[String], output: String, weight: Int);
 case class PayloadCompletionSuggest(input: Set[String], weight: Int, payload: String)
 
 case class VarCount(name: String, count: Int)
+
+case class CommentIndices(fileName: String, typeName: String,
+                          typeComment: String, methodComments: mutable.Map[String,String])
+
+case class Comments(comments: Set[CommentIndices])
+

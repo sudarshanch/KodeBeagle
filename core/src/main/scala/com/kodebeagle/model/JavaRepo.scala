@@ -61,6 +61,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
   private var _typesInFile: Option[TypesInFile] = None
 
+  private var _javaDoc: Option[Set[CommentIndices]] = None
+
   def searchableRefs: TypeReference = {
     getOrCompute(_searchableRefs, () => {
       parse()
@@ -96,6 +98,13 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
     })
   }
 
+  def javaDocs: Set[CommentIndices] = {
+    getOrCompute(_javaDoc, () => {
+      parse()
+      _javaDoc.get
+    })
+  }
+
   override def fileName: String = baseFile.fileName
 
   override def sloc: Int = baseFile.sloc
@@ -123,7 +132,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
     import scala.collection.JavaConversions._
 
-    val parser: JavaASTParser = new JavaASTParser(true)
+    val parser: JavaASTParser = new JavaASTParser(true, true)
     _repoPath = Option(s"${baseFile.githubRepoInfo.login}/${baseFile.githubRepoInfo.name}")
 
     // The file may not even be well formed, so the parser may throw an
@@ -139,6 +148,8 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       _searchableRefs = emptySearchableRefs(repoFileLocation)
       _fileMetaData = emptyFileMetadata(repoId,repoFileLocation)
       _typesInFile = emptyTypesInFile(repoPath,repoFileLocation)
+      _javaDoc = _emptyJavaDocs
+
     } else {
       val scbr: SingleClassBindingResolver = new SingleClassBindingResolver(cu.get)
       scbr.resolve()
@@ -156,6 +167,7 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       _typesInFile = Option(TypesInFile(repoPath, repoFileLocation,
         TypesInFileIndexHelper.usedTypesInFile(scbr),
         TypesInFileIndexHelper.declaredTypesInFile(scbr)))
+      _javaDoc = Option(JavaDocIndexHelper.generateJavaDocs(repoId,repoFileLocation,scbr))
     }
 
   }
@@ -183,6 +195,7 @@ object JavaFileInfo {
   val _emptyUsedTypesMap = Map.empty[String,(Set[String],Set[MethodType])]
   val _emptyImports: Option[Set[String]] = Option(Set.empty)
   val _emptySuperTypes = SuperTypes(Map.empty, Map.empty)
+  val _emptyJavaDocs: Option[Set[CommentIndices]] = Option(Set.empty)
 
   def emptySearchableRefs(repoFileLocation: String): Option[TypeReference] =
     Option(TypeReference(_emptyContextSet, Payload(_emptyPayLoadTypeSet,

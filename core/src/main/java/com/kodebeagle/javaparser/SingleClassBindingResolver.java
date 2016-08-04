@@ -143,6 +143,8 @@ public class SingleClassBindingResolver {
         return resolver.getInterfaces();
     }
 
+    public Set<MethodInvocationResolver.TypeJavadoc> getTypeJavadocs() { return resolver.getTypeJavadocs(); }
+
     public void resolve() {
         rootNode.accept(resolver);
     }

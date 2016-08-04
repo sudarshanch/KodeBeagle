@@ -19,6 +19,7 @@ package com.kodebeagle.parser
 
 import java.util.regex.Matcher
 
+import com.kodebeagle.indexer.{CommentIndices, JavaDocIndexHelper}
 import com.kodebeagle.javaparser.{JavaASTParser, SingleClassBindingResolver}
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import org.eclipse.jdt.core.dom.{CompilationUnit, SimpleName}
@@ -50,7 +51,7 @@ trait JavaParserSuiteTrait {
   def constructResolver(fileName: String): Option[SingleClassBindingResolver] = {
     val stream = this.getClass.getResourceAsStream(fileName)
     val fileContent = Source.fromInputStream(stream).mkString
-    val parser: JavaASTParser = new JavaASTParser(true)
+    val parser: JavaASTParser = new JavaASTParser(true,true)
     val cu: CompilationUnit = parser.
       getAST(fileContent, ParseType.COMPILATION_UNIT).asInstanceOf[CompilationUnit]
     val scbr = new SingleClassBindingResolver(cu)
@@ -124,6 +125,7 @@ class MethodInvocationResolverSuite extends FunSuite with BeforeAndAfterAll
     assert(fullyQualifiedTypesInFile.get("ExternalEnum") == "x.y.z.ExternalEnum")
   }
 
+
 }
 
 class JavaASTParserSuite extends FunSuite with BeforeAndAfterAll with JavaParserSuiteTrait {
@@ -183,6 +185,57 @@ class JavaASTParserSuite extends FunSuite with BeforeAndAfterAll with JavaParser
     resolvers.flatMap(r => r.getInterfaces).foreach(in => {
       in._2.foreach(str => isValidType(str))
     })
+  }
+
+  test("javadoc for Types, methods, enums") {
+
+   val javadocResolver: SingleClassBindingResolver =
+          constructResolver("/JavadocParsingTestClass.java").get
+
+    val comments: Set[CommentIndices] = JavaDocIndexHelper.
+            generateJavaDocs(1L,"test",javadocResolver)
+
+    assert(comments.size == 4)
+
+    for(comment: CommentIndices <- comments){
+
+      if (comment.typeName.equals("x.y.z.HelloWorld")){
+
+        assert(comment.typeComment.trim.contains("Test class comments"))
+        assert(comment.methodComments.size == 2)
+        comment.methodComments.keySet.foreach(mthdCmnt =>
+            assert(comment.methodComments.get(mthdCmnt).get.contains("Test class method")))
+      }
+
+      if (comment.typeName.equals("x.y.z.HelloWorldInterface")){
+
+        assert(comment.typeComment.trim.contains("Test interface comments"))
+        assert(comment.methodComments.size == 1)
+        comment.methodComments.keySet.foreach(mthdCmnt =>
+          assert(comment.methodComments.get(mthdCmnt).
+            get.contains("Test interface method comments")))
+      }
+
+      if (comment.typeName.equals("x.y.z.Direction")){
+
+        assert(comment.typeComment.trim.contains("Test Enum comments"))
+        assert(comment.methodComments.size == 1)
+        comment.methodComments.keySet.foreach(mthdCmnt =>
+          assert(comment.methodComments.get(mthdCmnt).
+            get.contains("Test Enum method comments")))
+      }
+
+      if (comment.typeName.equals("x.y.z.OrderedPair")){
+
+        assert(comment.typeComment.trim.contains("Test generic class comments"))
+        assert(comment.methodComments.size == 1)
+        comment.methodComments.keySet.foreach(mthdCmnt =>
+          assert(comment.methodComments.get(mthdCmnt).
+            get.contains("Test generic class method comments")))
+      }
+
+    }
+
   }
 
 }

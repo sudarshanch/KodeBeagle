@@ -20,6 +20,7 @@ package com.kodebeagle.indexer
 import java.util
 import java.util.Map.Entry
 
+import com.kodebeagle.javaparser.MethodInvocationResolver.{MethodJavadoc, TypeJavadoc}
 import com.kodebeagle.javaparser.SingleClassBindingResolver
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.util.Utils
@@ -264,3 +265,33 @@ object ExternalRefsIndexHelper extends Logger {
     Payload(payloadTypes, score, repoFileLocation)
   }
 }
+
+object JavaDocIndexHelper extends Logger{
+
+  import scala.collection.JavaConversions._
+
+  def generateJavaDocs(repoId: Long, repoFileLocation: String,
+                  resolver: SingleClassBindingResolver): Set[CommentIndices] = {
+
+    val commentIndices = mutable.Set.empty[CommentIndices]
+
+    for (javadoc: TypeJavadoc <- resolver.getTypeJavadocs) {
+
+      val methodJavaDocs = mutable.Map.empty[String,String]
+
+      for(methodJavadoc: MethodJavadoc <- javadoc.getMethodJavadocs){
+
+        methodJavaDocs.put(methodJavadoc.getName,methodJavadoc.getComment)
+
+      }
+
+      commentIndices.add(new CommentIndices(repoFileLocation,
+        javadoc.getName,javadoc.getComment,methodJavaDocs))
+
+    }
+
+    commentIndices.toSet
+  }
+
+}
+

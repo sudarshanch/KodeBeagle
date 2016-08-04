@@ -20,7 +20,7 @@ package com.kodebeagle.spark
 import java.io.{File, PrintWriter}
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.SourceFile
+import com.kodebeagle.indexer.{Comments, SourceFile}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import com.kodebeagle.model.{GithubRepo, JavaRepo}
@@ -29,7 +29,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SQLContext, DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.apache.spark.{SerializableWritable, SparkConf}
 
 import scala.util.Try
@@ -82,23 +82,23 @@ object RepoAnalyzerJob extends Logger {
       "private", "fork", "size", "stargazers_count", "watchers_count",
       "forks_count", "subscribers_count", "default_branch", "language")
       .rdd.map {r =>
-        val id: Long = Option(r.get(0)).get.asInstanceOf[Long]
-        val name: String = Option(r.get(1)).get.asInstanceOf[String]
-        val fullName: String = Option(r.get(2)).get.asInstanceOf[String]
-        val owner_Login: String = Option(r.get(3)).get.asInstanceOf[String]
-        val isPrivate: Boolean = Option(r.get(4)).get.asInstanceOf[Boolean]
-        val isFork: Boolean = Option(r.get(5)).get.asInstanceOf[Boolean]
-        val size: Long = Option(r.get(6)).get.asInstanceOf[Long]
-        val stars: Long = Option(r.get(7)).getOrElse(0L).asInstanceOf[Long]
-        val watchers: Long = Option(r.get(8)).getOrElse(0L).asInstanceOf[Long]
-        val forks: Long = Option(r.get(9)).getOrElse(0L).asInstanceOf[Long]
-        val subscribers: Long = Option(r.get(10)).getOrElse(0L).asInstanceOf[Long]
-        val defaultBranch: String = Option(r.get(11)).get.asInstanceOf[String]
-        val language: String = Option(r.get(12)).getOrElse("").asInstanceOf[String]
+      val id: Long = Option(r.get(0)).getOrElse(0L).asInstanceOf[Long]
+      val name: String = Option(r.get(1)).getOrElse("").asInstanceOf[String]
+      val fullName: String = Option(r.get(2)).getOrElse("").asInstanceOf[String]
+      val owner_Login: String = Option(r.get(3)).getOrElse("").asInstanceOf[String]
+      val isPrivate: Boolean = Option(r.get(4)).getOrElse(false).asInstanceOf[Boolean]
+      val isFork: Boolean = Option(r.get(5)).get.asInstanceOf[Boolean]
+      val size: Long = Option(r.get(6)).get.asInstanceOf[Long]
+      val stars: Long = Option(r.get(7)).getOrElse(0L).asInstanceOf[Long]
+      val watchers: Long = Option(r.get(8)).getOrElse(0L).asInstanceOf[Long]
+      val forks: Long = Option(r.get(9)).getOrElse(0L).asInstanceOf[Long]
+      val subscribers: Long = Option(r.get(10)).getOrElse(0L).asInstanceOf[Long]
+      val defaultBranch: String = Option(r.get(11)).get.asInstanceOf[String]
+      val language: String = Option(r.get(12)).getOrElse("").asInstanceOf[String]
 
-        GithubRepoInfo(
-          id, owner_Login, name, fullName, isPrivate, isFork, size, watchers,
-          language, forks, subscribers, defaultBranch, stars)
+      GithubRepoInfo(
+        id, owner_Login, name, fullName, isPrivate, isFork, size, watchers,
+        language, forks, subscribers, defaultBranch, stars)
     }
     repoInfos
   }
@@ -106,7 +106,8 @@ object RepoAnalyzerJob extends Logger {
   // **** Helper methods for the job ******// 
   private def filterRepo(ri: GithubRepoInfo): Boolean = {
     (ri.size / 1000 < 1000) && ri.stargazersCount > 25 && Option(ri.language).isDefined &&
-      Seq("Java", "Scala").exists(_.equalsIgnoreCase(ri.language))
+      Seq("Java", "Scala").exists(_.equalsIgnoreCase(ri.language) && !0L.equals(ri.id)
+       && !ri.name.isEmpty && !ri.fullName.isEmpty && !ri.login.isEmpty)
   }
 
   private def handleJavaIndices(confBroadcast: Broadcast[SerializableWritable[Configuration]],
@@ -127,13 +128,35 @@ object RepoAnalyzerJob extends Logger {
     val srcFileName = s"/tmp/kodebeagle-src-$login~$repoName"
     val metaFileName = s"/tmp/kodebeagle-meta-$login~$repoName"
     val typesInfoFileName = s"/tmp/kodebeagle-typesInfo-$login~$repoName"
+    val commentsFileName = s"/tmp/kodebeagle-javadoc-$login~$repoName"
 
     val srchrefWriter = new PrintWriter(new File(srchRefFileName))
     val srcWriter = new PrintWriter(new File(srcFileName))
     val metaWriter = new PrintWriter(new File(metaFileName))
     val typesInfoWriter = new PrintWriter(new File(typesInfoFileName))
+    val commentsWriter = new PrintWriter(new File(commentsFileName))
 
+    writeIndices(javarepo, login, repoName, srchrefWriter,
+      srcWriter, metaWriter, typesInfoWriter, commentsWriter)
 
+    val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
+
+    moveIndex(srcFileName, "sources")
+    moveIndex(srchRefFileName, "tokens")
+    moveIndex(metaFileName, "meta")
+    moveIndex(typesInfoFileName, "typesinfo")
+    moveIndex(commentsFileName, "comments")
+
+    val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
+    log.info(s"Executing command: $repoCleanCmd")
+    repoCleanCmd.!!
+    s"rm -f $srcFileName $srchRefFileName $metaFileName $typesInfoFileName $commentsFileName".!!
+  }
+
+  private def writeIndices(javarepo: JavaRepo, login: String, repoName: String,
+                           srchrefWriter: PrintWriter, srcWriter: PrintWriter,
+                           metaWriter: PrintWriter, typesInfoWriter: PrintWriter,
+                           commentsWriter: PrintWriter): Unit = {
     try {
       if (javarepo.files.isEmpty) {
         log.info(s"Repo $login/$repoName does not seem to contain anything java.")
@@ -146,27 +169,18 @@ object RepoAnalyzerJob extends Logger {
         val sourceEntry = toIndexTypeJson("java", "sourcefile", SourceFile(file.repoId,
           file.repoFileLocation, file.fileContent), Option(file.repoFileLocation))
         val typesInfoEntry = toJson(file.typesInFile)
+        val commentsEntry = toIndexTypeJson("java", "documentation",
+          Comments(file.javaDocs), Option(file.repoFileLocation))
 
         srchrefWriter.write(srchRefEntry + "\n")
         metaWriter.write(metaDataEntry + "\n")
         srcWriter.write(sourceEntry + "\n")
         typesInfoWriter.write(typesInfoEntry + "\n")
+        commentsWriter.write(commentsEntry + "\n")
       })
     } finally {
-      Seq(srchrefWriter, srcWriter, metaWriter, typesInfoWriter).foreach(_.close())
+      Seq(srchrefWriter, srcWriter, metaWriter, typesInfoWriter, commentsWriter).foreach(_.close())
     }
-
-    val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
-
-    moveIndex(srcFileName, "sources")
-    moveIndex(srchRefFileName, "tokens")
-    moveIndex(metaFileName, "meta")
-    moveIndex(typesInfoFileName, "typesinfo")
-
-    val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
-    log.info(s"Executing command: $repoCleanCmd")
-    repoCleanCmd.!!
-    s"rm -f $srcFileName $srchRefFileName $metaFileName".!!
   }
 
   private def moveFromLocal(login: String, repoName: String, fs: FileSystem)

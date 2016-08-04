@@ -36,7 +36,7 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
   // TODO: Get these from configuration?
   val remoteUrlPrefix = "https://github.com/"
   val gitDBName = "git.tar.gz"
-  val fsRepoDirPath = "/kodebeagle/repos/"
+  val fsRepoDirPath = KodeBeagleConfig.repoStoreDir
 
   def fs: FileSystem = FileSystem.get(configuration)
 
