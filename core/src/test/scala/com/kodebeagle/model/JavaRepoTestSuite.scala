@@ -151,16 +151,16 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
   test("test for type aggregations") {
     import scala.collection.JavaConversions._
     val typeAggs = testJavaRepo.get.files.map(_.typesInFile).flatMap(f => {
-      val dTypes = f.declaredTypes.mapValues((Set.empty[String], _)).toSeq
-      val uTypes = f.usedTypes.toSeq
+      val dTypes = f.declaredTypes.mapValues((Set.empty[String], _, f.repoName, f.fileName)).toSeq
+      val uTypes = f.usedTypes.mapValues(v => (v._1, v._2, f.repoName, f.fileName)).toSeq
       dTypes ++ uTypes
     }).aggregate(new scala.collection.mutable.HashMap[String, TypeAggregator]())(
       (aggMap, value) => {
         val aggOpt = aggMap.get(value._1)
         aggOpt match {
-          case Some(agg) => agg.merge(value._2._1, value._2._2)
+          case Some(agg) => agg.merge(value._2._1, value._2._2, value._2._3, value._2._4)
           case None => aggMap.put(value._1,
-            new TypeAggregator().merge(value._2._1, value._2._2))
+            new TypeAggregator().merge(value._2._1, value._2._2, value._2._3, value._2._4))
         }
         aggMap
       },

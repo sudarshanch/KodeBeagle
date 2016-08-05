@@ -17,10 +17,6 @@
 
 package com.kodebeagle.indexer
 
-import java.util
-
-import scala.collection.mutable
-
 case class Line(line: Int, startCol: Int, endCol: Int)
 
 case class ContextProperty(name: String) extends Property
@@ -84,7 +80,7 @@ case class JavaFileIndices(searchableRefs: Set[TypeReference],
                            fileMetaData: FileMetaData, sourceFile: SourceFile, repo: String)
 
 case class MethodType(returnType: String, methodName: String, argTypes: List[String],
-                      isDeclared: Boolean)
+                      isDeclared: Boolean, isConstructor: Boolean)
 
 case class TypesInFile(repoName: String, fileName: String,
                        // imported types -> (varnames, methods)
@@ -92,23 +88,7 @@ case class TypesInFile(repoName: String, fileName: String,
                        // declared types -> methods
                        declaredTypes: Map[String, Set[MethodType]])
 
-// For Type aggregations
-case class TypeAggregation(name: String, score: Int, context: Set[String],
-                           typeSuggest: CompletionSuggest,
-                           methodSuggest: PayloadCompletionSuggest,
-                           searchText: Set[String], vars: Set[VarCount],
-                           methods: Set[MethodCount])
-
-case class MethodCount(name: String, params: Int, count: Int)
-
-case class CompletionSuggest(input: Set[String], output: String, weight: Int);
-
-case class PayloadCompletionSuggest(input: Set[String], weight: Int, payload: String)
-
-case class VarCount(name: String, count: Int)
-
 case class CommentIndices(fileName: String, typeName: String,
-                          typeComment: String, methodComments: mutable.Map[String,String])
+                          typeComment: String, methodComments: Map[String,String])
 
 case class Comments(comments: Set[CommentIndices])
-

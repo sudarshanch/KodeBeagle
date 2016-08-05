@@ -18,9 +18,27 @@
 package com.kodebeagle.javaparser;
 
 import com.google.common.base.Joiner;
-import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
 
 
 public class MethodInvocationResolver extends TypeResolver {
@@ -92,14 +110,7 @@ public class MethodInvocationResolver extends TypeResolver {
         TypeDecl obj = new TypeDecl(typeFullyQualifiedName, td.getName().getStartPosition());
         typeDeclarations.add(obj);
 
-        if (td.getJavadoc()!=null) {
-            typeJavadocs.put(currentPackage + "." + typeFullyQualifiedName, new TypeJavadoc(currentPackage + "." +
-                    typeFullyQualifiedName, td.getJavadoc().toString(), new HashSet<MethodJavadoc>()));
-        }
-        else{
-            typeJavadocs.put(currentPackage + "." + typeFullyQualifiedName, new TypeJavadoc(currentPackage + "." +
-                    typeFullyQualifiedName, "", new HashSet<MethodJavadoc>()));
-        }
+        addTypeDoc(td, typeFullyQualifiedName);
         return true;
     }
 
@@ -122,14 +133,7 @@ public class MethodInvocationResolver extends TypeResolver {
         methodStack.push(node);
         addMethodDecl(node);
 
-        if(node.getJavadoc()!=null && node.getParent() instanceof AbstractTypeDeclaration) {
-            TypeJavadoc typeJavadoc = typeJavadocs.get(currentPackage + "." +
-                    removeSpecialSymbols(((AbstractTypeDeclaration) node.getParent()).getName().getFullyQualifiedName()));
-            if (typeJavadoc!=null) {
-                typeJavadoc.getMethodJavadocs().add(new MethodJavadoc(node.getName().getFullyQualifiedName(), node.getJavadoc().toString()));
-                typeJavadocs.put(currentPackage + "." + removeSpecialSymbols(((AbstractTypeDeclaration) node.getParent()).getName().getFullyQualifiedName()), typeJavadoc);
-            }
-        }
+        addMethodDoc(node);
         return super.visit(node);
     }
 
@@ -213,14 +217,7 @@ public class MethodInvocationResolver extends TypeResolver {
         TypeDecl obj = new TypeDecl(typeFullyQualifiedName, ed.getName().getStartPosition());
         typeDeclarations.add(obj);
 
-        if (ed.getJavadoc()!=null) {
-            typeJavadocs.put(currentPackage + "." + typeFullyQualifiedName, new TypeJavadoc(currentPackage + "." +
-                    typeFullyQualifiedName, ed.getJavadoc().toString(), new HashSet<MethodJavadoc>()));
-        }
-        else{
-            typeJavadocs.put(currentPackage + "." + typeFullyQualifiedName, new TypeJavadoc(currentPackage + "." +
-                    typeFullyQualifiedName, "", new HashSet<MethodJavadoc>()));
-        }
+        addTypeDoc(ed, typeFullyQualifiedName);
 
         return true;
     }
@@ -233,6 +230,28 @@ public class MethodInvocationResolver extends TypeResolver {
             types.put(typeName, currentPackage + "." + qualifiedTypeName);
         }
         super.endVisit(ed);
+    }
+
+    private void addTypeDoc(AbstractTypeDeclaration ed, String typeFullyQualifiedName) {
+        String fullTypeName = currentPackage + "." + typeFullyQualifiedName;
+        String docComment = "";
+        if (ed.getJavadoc() != null) {
+            docComment = ed.getJavadoc().toString();
+        }
+        typeJavadocs.put(fullTypeName, new TypeJavadoc(fullTypeName, docComment, new HashSet<MethodJavadoc>()));
+    }
+
+    private void addMethodDoc(MethodDeclaration node) {
+        if (node.getJavadoc() != null && node.getParent() instanceof AbstractTypeDeclaration) {
+            String typeName = ((AbstractTypeDeclaration) node.getParent()).getName().getFullyQualifiedName();
+            String fullTypeName = currentPackage + "." + removeSpecialSymbols(typeName);
+            TypeJavadoc typeJavadoc = typeJavadocs.get(fullTypeName);
+            if (typeJavadoc != null) {
+                typeJavadoc.getMethodJavadocs().add(
+                        new MethodJavadoc(node.getName().getFullyQualifiedName(),
+                                node.getJavadoc().toString()));
+            }
+        }
     }
 
     /**
@@ -641,10 +660,6 @@ public class MethodInvocationResolver extends TypeResolver {
 
         public Set<MethodJavadoc> getMethodJavadocs() {
             return methodJavadocs;
-        }
-
-        public void setMethodJavadocs(Set<MethodJavadoc> methodJavadocs) {
-            this.methodJavadocs = methodJavadocs;
         }
 
         @Override

@@ -20,7 +20,7 @@ package com.kodebeagle.spark
 import java.io.{File, PrintWriter}
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.{Comments, SourceFile}
+import com.kodebeagle.indexer.{TypeReference, Comments, SourceFile}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import com.kodebeagle.model.{GithubRepo, JavaRepo}
@@ -136,8 +136,24 @@ object RepoAnalyzerJob extends Logger {
     val typesInfoWriter = new PrintWriter(new File(typesInfoFileName))
     val commentsWriter = new PrintWriter(new File(commentsFileName))
 
-    writeIndices(javarepo, login, repoName, srchrefWriter,
-      srcWriter, metaWriter, typesInfoWriter, commentsWriter)
+    try {
+      if (javarepo.files.isEmpty) {
+        log.info(s"Repo $login/$repoName does not seem to contain anything java.")
+      }
+      javarepo.files.foreach(file => {
+        val fileLoc = Option(file.repoFileLocation)
+        writeIndex("java", "typereference", file.searchableRefs, fileLoc, srchrefWriter)
+        writeIndex("java", "filemetadata", file.fileMetaData, fileLoc, metaWriter)
+        writeIndex("java", "sourcefile", SourceFile(file.repoId,file.repoFileLocation,
+          file.fileContent), fileLoc, srcWriter)
+        writeIndex("java", "documentation", Comments(file.javaDocs), fileLoc, commentsWriter)
+
+        val typesInfoEntry = toJson(file.typesInFile)
+        typesInfoWriter.write(typesInfoEntry + "\n")
+      })
+    } finally {
+      typesInfoWriter.close()
+    }
 
     val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
 
@@ -153,33 +169,13 @@ object RepoAnalyzerJob extends Logger {
     s"rm -f $srcFileName $srchRefFileName $metaFileName $typesInfoFileName $commentsFileName".!!
   }
 
-  private def writeIndices(javarepo: JavaRepo, login: String, repoName: String,
-                           srchrefWriter: PrintWriter, srcWriter: PrintWriter,
-                           metaWriter: PrintWriter, typesInfoWriter: PrintWriter,
-                           commentsWriter: PrintWriter): Unit = {
-    try {
-      if (javarepo.files.isEmpty) {
-        log.info(s"Repo $login/$repoName does not seem to contain anything java.")
-      }
-      javarepo.files.foreach(file => {
-        val srchRefEntry = toIndexTypeJson("java", "typereference", file.searchableRefs,
-          Option(file.searchableRefs.file))
-        val metaDataEntry = toIndexTypeJson("java", "filemetadata", file.fileMetaData,
-          Option(file.fileMetaData.fileName))
-        val sourceEntry = toIndexTypeJson("java", "sourcefile", SourceFile(file.repoId,
-          file.repoFileLocation, file.fileContent), Option(file.repoFileLocation))
-        val typesInfoEntry = toJson(file.typesInFile)
-        val commentsEntry = toIndexTypeJson("java", "documentation",
-          Comments(file.javaDocs), Option(file.repoFileLocation))
-
-        srchrefWriter.write(srchRefEntry + "\n")
-        metaWriter.write(metaDataEntry + "\n")
-        srcWriter.write(sourceEntry + "\n")
-        typesInfoWriter.write(typesInfoEntry + "\n")
-        commentsWriter.write(commentsEntry + "\n")
-      })
+  private def writeIndex[T <: AnyRef <% Product with Serializable](index: String, typeName: String,
+                                                                   indices: T, id: Option[String],
+                                                                   writer: PrintWriter) = {
+    try{
+      writer.write(toIndexTypeJson(index, typeName, indices, id) + "\n")
     } finally {
-      Seq(srchrefWriter, srcWriter, metaWriter, typesInfoWriter, commentsWriter).foreach(_.close())
+      writer.close()
     }
   }
 

@@ -29,7 +29,7 @@ import org.json4s.jackson.Serialization._
 import scala.util.Try
 
 
-object TypeAggregationJob extends Logger{
+object TypeAggregationJob extends Logger {
   implicit val formats = Serialization.formats(NoTypeHints)
 
   def main(args: Array[String]) {
@@ -40,22 +40,28 @@ object TypeAggregationJob extends Logger{
     val sc = createSparkContext(conf)
     sc.hadoopConfiguration.set("dfs.replication", "1")
 
-    sc.textFile("/kodebeagle/indices/Java/typesinfo/")
+    val typesInfoLocation = Try {
+      args(0).trim
+    }.toOption
+
+    sc.textFile(typesInfoLocation.getOrElse(KodeBeagleConfig.typesInfoLocation))
       .flatMap(f => {
         f.trim.isEmpty match {
           case true => None
-          case false => Try{try {
-            read[TypesInFile](f)
-          } catch {
-            case e: Throwable => log.error(s"Could not read line ${f}"); throw e
-          }}.toOption
+          case false => Try {
+            try {
+              read[TypesInFile](f)
+            } catch {
+              case e: Throwable => log.error(s"Could not read line ${f}"); throw e
+            }
+          }.toOption
         }
       }).flatMap(f => {
-      val dTypes = f.declaredTypes.mapValues((Set.empty[String], _)).toSeq
-      val uTypes = f.usedTypes.toSeq
+      val dTypes = f.declaredTypes.mapValues((Set.empty[String], _, f.repoName, f.fileName)).toSeq
+      val uTypes = f.usedTypes.mapValues(v => (v._1, v._2, f.repoName, f.fileName)).toSeq
       dTypes ++ uTypes
     }).aggregateByKey(new TypeAggregator())(
-      (agg, value) => agg.merge(value._1, value._2),
+      (agg, value) => agg.merge(value._1, value._2, value._3, value._4),
       (agg1, agg2) => agg1.merge(agg2))
       .map(agg => toIndexTypeJson("java", "aggregation", agg._2.result(agg._1)))
       .saveAsTextFile(s"${KodeBeagleConfig.repoIndicesHdfsPath}Java/types_aggregate")

@@ -28,38 +28,59 @@ class TypeAggregator() extends Serializable {
 
   // # used in other types (method usage will be higher)
   var score = 0
+
+  var declaredInFile: Option[String] = None
+  var declaredInRepo: Option[String] = None
+  var usedInReposCount: mutable.Map[String, Int] = mutable.Map.empty[String, Int]
+
+  var varNames: mutable.Map[String, Int] = mutable.Map.empty[String, Int]
   val methods: mutable.Set[MethodType] = mutable.Set.empty[MethodType]
-  val varNames: mutable.Map[String, Int] = mutable.Map.empty[String, Int]
   val methodCount: mutable.Map[(String, Int), Int] = mutable.Map.empty[(String, Int), Int]
 
   def merge(other: TypeAggregator): TypeAggregator = {
     score += other.score
+    other.declaredInFile match {
+      case Some(d) => declaredInFile = other.declaredInFile
+      case None =>
+    }
+    other.declaredInRepo match {
+      case Some(d) => declaredInRepo = other.declaredInRepo
+      case None =>
+    }
     mergeMethods(other.methods)
     other.methodCount.foreach(m => methodCount.update(m._1, methodCount.getOrElse(m._1, 0) + m._2))
     other.varNames.foreach(e => varNames.update(e._1, varNames.getOrElse(e._1, 0) + e._2))
-    // A bit of a hack to manage the count map size
-    if (varNames.size > 20) {
-      val min = varNames.values.min
-      varNames.retain((k, v) => v == min)
-    }
+    // A bit of a hack to manage the count map size on the combiner
+    // If after combining other agg, the map size goes over 20, then trim it to remove mins.
+    varNames = trimMap(varNames, 50)
+
+    other.usedInReposCount.foreach(e =>
+      usedInReposCount.update(e._1, usedInReposCount.getOrElse(e._1, 0) + e._2))
+    // A bit of a hack to manage the count map size on the combiner
+    // If after combining other agg, the map size goes over 20, then trim it to remove mins.
+    usedInReposCount = trimMap(usedInReposCount, 50)
     this
   }
 
-  def merge(vars: Set[String], ms: Set[MethodType]): TypeAggregator = {
+  def merge(vars: Set[String], ms: Set[MethodType], repo: String, file: String): TypeAggregator = {
     score += 1
-    mergeMethods(ms)
+    // removing the constructor invocations
+    mergeMethods(ms.filter(e => !e.isConstructor))
     vars.foreach(e => varNames.update(e, varNames.getOrElse(e, 0) + 1))
+    usedInReposCount.update(repo, usedInReposCount.getOrElse(repo, 0) + 1)
     ms.foreach(m => {
       // Only if this method is not a decl, it counts towards usage.
-      if (!m.isDeclared) methodCount.update(
-        (m.methodName, m.argTypes.size),
-        methodCount.getOrElse((m.methodName, m.argTypes.size), 0) + 1)
+      m.isDeclared match {
+        case false => methodCount.update((m.methodName, m.argTypes.size),
+          methodCount.getOrElse((m.methodName, m.argTypes.size), 0) + 1)
+        case true => {
+          // this is redundant for doing no each invocation inside ms but not much harm
+          declaredInFile = Option(file)
+          declaredInRepo = Option(repo)
+        }
+      }
     })
-    // A bit of a hack to manage the count map size
-    if (varNames.size > 20) {
-      val min = varNames.values.min
-      varNames.retain((k, v) => v == min)
-    }
+
     this
   }
 
@@ -114,7 +135,7 @@ class TypeAggregator() extends Serializable {
   // scalastyle:on
 
   // Figure out if second method type argument is a better version of the first one?
-  def isBetterMethodDefinition(m: MethodType, om: MethodType): Boolean = {
+  private def isBetterMethodDefinition(m: MethodType, om: MethodType): Boolean = {
     var score = 0
     m.argTypes.zip(om.argTypes).foreach(pair => {
       if (pair._1.equalsIgnoreCase(OBJ_TYPE) &&
@@ -135,7 +156,7 @@ class TypeAggregator() extends Serializable {
 
     val srchText = methods.map(m => {
       val typeprefix = s"${camelCasePattern.split(typeName).mkString(" ")}"
-      val methodprefix  = s"${camelCasePattern.split(m.methodName).mkString(" ")}"
+      val methodprefix = s"${camelCasePattern.split(m.methodName).mkString(" ")}"
       val methodText = m.argTypes
         .map(e => camelCasePattern.split(e.split("\\.").last).mkString(" ")).mkString(" ")
       s"$typeprefix $methodprefix $methodText"
@@ -145,12 +166,15 @@ class TypeAggregator() extends Serializable {
       context = tokens.slice(0, tokens.length - 1).toSet,
       typeSuggest = CompletionSuggest(camelCasePattern.split(typeName).toSet, typeName, score),
       methodSuggest = PayloadCompletionSuggest(
-        camelCasePattern.split(methods.map(_.methodName).mkString(" ")).toSet, score,
+        methods.map(_.methodName).toSet, score,
         // Coz: https://issues.scala-lang.org/browse/SI-6476
         """{"type": """" + typeName + """"}"""),
       searchText = srchText,
-      vars = varNames.map(e => VarCount(e._1, e._2)).toSet,
-      methods = methodCount.map(e => MethodCount(e._1._1, e._1._2, e._2)).toSet)
+      vars = varNames.filter(!_._1.isEmpty).map(e => VarCount(e._1, e._2)).toSet,
+      methods = methodCount.map(e => MethodCount(e._1._1, e._1._2, e._2)).toSet,
+      declaredInFile.getOrElse(""),
+      declaredInRepo.getOrElse(""),
+      usedInReposCount.map(e => RepoCount(e._1, e._2)).toSet)
   }
 }
 
@@ -158,5 +182,36 @@ object TypeAggregator {
   val OBJ_TYPE = "java.lang.Object"
   val camelCasePattern = Pattern.compile(
     """([^\p{L}\d]+)|(?<=\D)(?=\d)|(?<=\d)(?=\D)|(?<=[\p{L}&&[^\p{Lu}]])"""
-      + """(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}[\p{L}&&[^\p{Lu}]])""")
+      +
+      """(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}[\p{L}&&[^\p{Lu}]])""")
+
+  def trimMap[K](map: mutable.Map[K, Int], size: Int): mutable.Map[K, Int] = {
+    if (map.size > size) {
+      val threshold = map.values.toList.sortWith(_ > _).take(size).last
+      val min = map.values.min
+      map.retain((k, v) => v > threshold)
+    }
+    map
+  }
 }
+
+// For Type aggregations
+case class TypeAggregation(name: String, score: Int, context: Set[String],
+                           typeSuggest: CompletionSuggest,
+                           methodSuggest: PayloadCompletionSuggest,
+                           searchText: Set[String], vars: Set[VarCount],
+                           methods: Set[MethodCount],
+                           declInFile: String,
+                           declInRepo: String,
+                           repoCounts: Set[RepoCount])
+
+case class MethodCount(name: String, params: Int, count: Int)
+
+case class RepoCount(name: String, count: Int)
+
+case class CompletionSuggest(input: Set[String], output: String, weight: Int);
+
+case class PayloadCompletionSuggest(input: Set[String], weight: Int, payload: String)
+
+case class VarCount(name: String, count: Int)
+
