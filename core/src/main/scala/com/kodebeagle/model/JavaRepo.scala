@@ -119,6 +119,16 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
 
   def isTestFile(): Boolean = imports.exists(_.contains("org.junit"))
 
+  // Reset the generated indices to None so that the older strings can be GCed
+  def free(): Unit = {
+    _repoPath = None
+    _searchableRefs = None
+    _fileMetaData = None
+    _imports = None
+    _javaDoc = None
+    _typesInFile = None
+  }
+
   /**
     * This method parses the java file and updates all that needs to be exposed by this class.
     *

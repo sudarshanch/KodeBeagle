@@ -25,8 +25,7 @@ class MockedGithubRepo() extends GithubRepo() {
   val mockGithubRepoInfo = new GithubRepoInfo(1, "himukr", "google-grp-scraper",
     "himukr/google-grp-scraper", false, false, 100, 5, "", 1, 5,"master", 5)
   def init(configurationTest: Configuration, repoPathTest: String): MockedGithubRepo = {
-    _repoGitFiles = Option(
-      List(s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"))
+    _repoGitFile = Option(s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper")
     repoInfo = Option(mockGithubRepoInfo)
     this
   }

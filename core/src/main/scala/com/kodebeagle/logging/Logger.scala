@@ -17,8 +17,25 @@
 
 package com.kodebeagle.logging
 
+import org.apache.spark.TaskContext
 import org.slf4j.LoggerFactory
+
 
 trait Logger {
   val log = LoggerFactory.getLogger(this.getClass.getName)
+}
+
+object LoggerUtils {
+  implicit  class SparkLogger(log: org.slf4j.Logger) extends {
+
+    private def appendContextInfo(msg: String) = {
+      val maybeContext = Option(TaskContext.get())
+      maybeContext match {
+        case Some(c) => s"Task[${c.taskAttemptId()}.${c.attemptNumber()}] ${msg}"
+        case None => msg
+      }
+    }
+
+    def sparkInfo(msg: String): Unit = log.info(appendContextInfo(msg))
+  }
 }

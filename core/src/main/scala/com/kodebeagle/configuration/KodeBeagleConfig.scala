@@ -54,6 +54,8 @@ object KodeBeagleConfig extends ConfigReader {
   private[kodebeagle] val esourceFileIndex: String = get("kodebeagle.es.sourceFileIndex").get
   private[kodebeagle] val metadataRange: String = get("kodebeagle.metadata.range").get
   private[kodebeagle] val chunkSize: String = get("kodebeagle.metadata.chunk-size").get
+  private[kodebeagle] val maxGitFileSize = get("kodebeagle.github.repo.max.size").get.toInt
+  private[kodebeagle] val minStars = get("kodebeagle.repo.min.stars").get.toInt
   private[kodebeagle] val httpClientMaxRetries: Int =
     get("kodebeagle.httpClient.max-retries").get.toInt
 

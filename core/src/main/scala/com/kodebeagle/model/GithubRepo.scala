@@ -49,7 +49,7 @@ class GithubRepo protected()
   private var _files: Option[List[GithubFileInfo]] = None
   private var _stats: Option[RepoStatistics] = None
   private var _languages: Option[Set[String]] = None
-  protected var _repoGitFiles: Option[List[String]] = None
+  protected var _repoGitFile: Option[String] = None
   var repoInfo: Option[GithubRepoInfo] = None
 
 
@@ -60,9 +60,12 @@ class GithubRepo protected()
     if (repoUpdateHelper.shouldUpdate()) {
       repoUpdateHelper.update()
     }
-    _repoGitFiles = Option(repoUpdateHelper.downloadLocalFromDfs())
     repoInfo = Option(githubRepoInfo)
-    this
+    _repoGitFile = repoUpdateHelper.downloadLocalFromDfs()
+    _repoGitFile match {
+      case Some(git) => this
+      case None => throw new IllegalStateException("Repo could not be downloaded.")
+    }
   }
 
   override def files: List[GithubFileInfo] = {
@@ -87,7 +90,7 @@ class GithubRepo protected()
   }
 
   def repository: Repository = {
-    val repoPath: String = _repoGitFiles.get(0)
+    val repoPath: String = _repoGitFile.get
     val builder: FileRepositoryBuilder = new FileRepositoryBuilder
     builder.setGitDir(new File(s"$repoPath/.git")).readEnvironment.findGitDir.build
   }

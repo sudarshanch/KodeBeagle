@@ -108,7 +108,7 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
       throw new IllegalStateException("Repo metadata was present but repo no longer exists.")
     }
 
-    if(emptyDetector.isEmpty){
+    if (emptyDetector.isEmpty) {
       log.warn(s"${repoPath} seems to be empty. It will be skipped.")
       throw new IllegalStateException("Repo metadata was present but repo was empty.")
     }
@@ -129,26 +129,28 @@ class GithubRepoUpdateHelper(val configuration: Configuration,
     * @return -- list of files downloaded from hdfs for this repo
     */
 
-  def downloadLocalFromDfs(): List[String] = {
+  def downloadLocalFromDfs(): Option[String] = {
     import sys.process._
 
     log.info(s"Downloading repo to ${localRepoPath}")
-    val files = fs.listStatus(fsRepoPath);
-    val fileBuff = ListBuffer[String]()
+    val f = fs.getFileStatus(new Path(s"${fsRepoPath}/git.tar.gz"))
     val localRepoCrtOp = s"""mkdir -p ${localRepoPath}""".!!
-    for (f <- files) {
-      val fileName = f.getPath().getName
-      val localFilePath: String = join(File.separator, localRepoPath, fileName)
-      fs.copyToLocalFile(false, f.getPath, new Path(localFilePath))
-      if (f.getPath().getName.endsWith("gz")) {
-        val output = s"""tar -xzf ${localFilePath} -C ${localRepoPath}""".!!
-        val delOut = s"""rm $localFilePath""".!!
+    (f.getLen > KodeBeagleConfig.maxGitFileSize * 1000 * 1000) match {
+      case true => {
+        log.debug(s"${f.getPath} is above size limit,will be ignored. Size (bytes):${f.getLen}")
+        None
       }
-
-      fileBuff += join(File.separator,
-        localRepoPath, repoPath.split("/")(1))
+      case false => {
+        val fileName = f.getPath().getName
+        val localFilePath: String = join(File.separator, localRepoPath, fileName)
+        fs.copyToLocalFile(false, f.getPath, new Path(localFilePath))
+        if (f.getPath().getName.endsWith("gz")) {
+          val output = s"""tar -xzf ${localFilePath} -C ${localRepoPath}""".!!
+          val delOut = s"""rm $localFilePath""".!!
+        }
+        Option(join(File.separator, localRepoPath, repoPath.split("/")(1)))
+      }
     }
-    fileBuff.toList
   }
 
   def buildCloneCommand(repoName: String, cloneUrl: String): Seq[String] = {
@@ -177,9 +179,13 @@ class EmptyRepoCloneDetector extends ProcessLogger {
 
   var isEmpty = false
 
-  override def out(s: => String): Unit = {if (s.contains("empty repository")) isEmpty = true}
+  override def out(s: => String): Unit = {
+    if (s.contains("empty repository")) isEmpty = true
+  }
 
-  override def err(s: => String): Unit = {if (s.contains("empty repository")) isEmpty = true}
+  override def err(s: => String): Unit = {
+    if (s.contains("empty repository")) isEmpty = true
+  }
 
   override def buffer[T](f: => T): T = f
 }
