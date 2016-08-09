@@ -286,7 +286,7 @@ public class MethodInvocationResolver extends TypeResolver {
         String methodName = nameNode.toString();
         String returnType = "";
         if (node.getReturnType2() != null) {
-            returnType = node.getReturnType2().toString();
+            returnType = getNameOfType(node.getReturnType2());
         }
 
         Map<String, String> params = new HashMap<>();

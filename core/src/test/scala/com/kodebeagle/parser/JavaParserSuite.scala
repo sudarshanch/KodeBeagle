@@ -83,6 +83,15 @@ class MethodInvocationResolverSuite extends FunSuite with BeforeAndAfterAll
     }
   }
 
+  test("return type test") {
+    import scala.collection.JavaConversions._
+    val methodDeclarations = enumTestFileResolver.get.getDeclaredMethods
+    if(methodDeclarations.size() > 0) {
+      val methodDecl = methodDeclarations.find(_.getMethodName == "handleResponse").get
+      assert("org.apache.http.impl.client.RoutedRequest".equals(methodDecl.getReturnType))
+    }
+  }
+
   test("imports test") {
     val imports = enumTestFileResolver.get.getImports
     assert(imports.size() == 65)
