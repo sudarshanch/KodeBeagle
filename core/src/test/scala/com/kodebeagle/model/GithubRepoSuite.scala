@@ -84,13 +84,15 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
 trait GitHubRepoMockSupport {
   def mockRepo: Option[GithubRepo] = {
     import sys.process._
+    val outputDir = s"""${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"""
+
     FileUtils.copyFileToDirectory(
       new File(Thread.currentThread.
         getContextClassLoader.getResource("GitRepoTest-git.tar.gz").getPath),
-      new File(s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"))
+      new File(s"$outputDir"))
 
-    s"""tar -xvf ${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper/GitRepoTest-git.tar.gz
-        |-C ${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper""".stripMargin.!!
+    s"""tar -xvf $outputDir/GitRepoTest-git.tar.gz
+        |-C $outputDir""".stripMargin.!!
 
     Option(new MockedGithubRepo().init(new Configuration, "himukr/google-grp-scraper"))
   }

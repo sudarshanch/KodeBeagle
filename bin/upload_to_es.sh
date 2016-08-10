@@ -137,7 +137,8 @@ curl -X PUT localhost:9200/java/aggregation/_mapping -d '{
 	"aggregation": {
 		"properties": {
 			"name": {
-				"type": "string"
+				"type": "string",
+				"analyzer": "keyword_analyzer"
 			},
 			"score": {
 				"type": "long"
@@ -189,38 +190,46 @@ curl -X PUT localhost:9200/java/aggregation/_mapping -d '{
 }'
 
 curl -XPUT localhost:9200/java/filemetadata/_mapping -d '{
-    "filemetadata": {
+  "filemetadata": {
+    "properties": {
+      "repoId": {
+        "type": "integer",
+        "index": "not_analyzed"
+      },
+      "fileName": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "superTypes": {
+        "type": "object",
+        "enabled": false
+      },
+      "fileTypes": {
         "properties": {
-            "repoId": {
-				"type": "integer",
-				"index": "not_analyzed"
-			},
-			"fileName": {
-				"type": "string",
-				"index": "not_analyzed"
-			},
-			"superTypes": {
-                "type" : "object",
-                "enabled" : false
-            },
-            "fileTypes": {
-                "type" : "object",
-                "enabled" : false
-            },
-            "externalRefList": {
-                "type" : "object",
-                "enabled" : false
-            },
-            "methodDefinitionList": {
-                "type" : "object",
-                "enabled" : false
-            },
-            "internalRefList": {
-                "type" : "object",
-                "enabled" : false
-            }
+          "fileType": {
+            "type": "string",
+            "analyzer": "keyword_analyzer"
+          },
+          "loc": {
+            "type": "string",
+            "enabled": false
+          }
         }
+      },
+      "externalRefList": {
+        "type": "object",
+        "enabled": false
+      },
+      "methodDefinitionList": {
+        "type": "object",
+        "enabled": false
+      },
+      "internalRefList": {
+        "type": "object",
+        "enabled": false
+      }
     }
+  }
 }'
 
 curl -XPUT localhost:9200/java/sourcefile/_mapping -d '{
