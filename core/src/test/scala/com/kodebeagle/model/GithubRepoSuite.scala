@@ -22,6 +22,9 @@ import java.io.File
 import com.kodebeagle.configuration.KodeBeagleConfig
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.revwalk.{RevTree, RevWalk}
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
 class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMockSupport {
@@ -35,6 +38,38 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
   test("getting files from repository") {
     val files = repo.get.files
     assert(files.size == 7)
+  }
+
+  test("repo git history aggregation") {
+    val repository = repo.get.repository
+    val git = new Git(repository)
+    val revWalk: RevWalk = new RevWalk(repository)
+
+    // find the HEAD
+    val headCommitId = repository.resolve(Constants.HEAD)
+    val headTree: RevTree = revWalk.parseCommit(headCommitId).getTree
+    revWalk.markStart(revWalk.lookupCommit(headCommitId))
+
+    val logAgg = time("gitLogAgg", repo.get.analyzeHistory())
+    // print(logAgg.allCommits.size + "\n")
+
+    /* logAgg.mostChangedFiles(10).foreach({
+      case (file, count) => {
+        print(s"File: $file, changed: $count \n")
+        print("Top Authors: \n")
+        logAgg.topAuthors(file, 3).foreach(e=> print(s"\t $e \n"))
+        print("Cochanged files: \n")
+        logAgg.coOccuringFiles(file, 5).foreach(e => print(s"\t $e \n"))
+      }
+    }) */
+  }
+
+  def time[T](name: String, block: => T): T = {
+    val start = System.currentTimeMillis()
+    val result = block
+    val end = System.currentTimeMillis()
+    print(s"Time taken for: ${name} is ${(end - start)} ms \n")
+    result
   }
 
   test("getting language from repository") {
@@ -91,9 +126,12 @@ trait GitHubRepoMockSupport {
         getContextClassLoader.getResource("GitRepoTest-git.tar.gz").getPath),
       new File(s"$outputDir"))
 
+
     s"""tar -xvf $outputDir/GitRepoTest-git.tar.gz
         |-C $outputDir""".stripMargin.!!
 
-    Option(new MockedGithubRepo().init(new Configuration, "himukr/google-grp-scraper"))
+    var gitRepoPath = s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"
+    // gitRepoPath = "/home/sachint/todelete/spark/"
+    Option(new MockedGithubRepo().init(new Configuration, gitRepoPath))
   }
 }

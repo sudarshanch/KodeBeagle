@@ -131,6 +131,7 @@ object KodeBeagleBuild extends Build {
       git.useGitDescribe := true,
       scalacOptions := scalacOptionsList,
       //resolvers += Resolver.mavenLocal,
+      resolvers += Resolver.url("http://gitblit.github.io/gitblit-maven/"),
       updateOptions := updateOptions.value.withCachedResolution(true),
       updateOptions := updateOptions.value.withLatestSnapshots(false),
       crossPaths := false,
@@ -172,6 +173,8 @@ object Dependencies {
 
   val junit = "junit" % "junit" % "4.12"
   val rhino = "org.mozilla" % "rhino" % "1.7R4"
+
+  // val gitblit = ("com.gitblit" % "gitblit" % "1.8.0").intransitive()
 
   //Eclipse dependencies for Tassal libs
   object EclipseDeps {

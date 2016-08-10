@@ -18,10 +18,10 @@
 package com.kodebeagle.spark
 
 import java.io.{File, PrintWriter}
-import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}
+import java.util.concurrent.atomic.AtomicLong
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.{TypeReference, Comments, SourceFile}
+import com.kodebeagle.indexer.{Comments, SourceFile}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import com.kodebeagle.model.{GithubRepo, JavaRepo}
@@ -30,8 +30,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.apache.spark.{TaskContext, SerializableWritable, SparkConf}
+import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.{SerializableWritable, SparkConf}
+import scala.sys.process._
 
 import scala.util.Try
 
@@ -141,28 +142,45 @@ object RepoAnalyzerJob extends Logger {
     log.sparkInfo(s"Processing repo ${login}/${repoName}, size is ${totalExecutorSize.get}")
 
     javarepo.files.size < 20000 match {
-      case true => handleJavaRepo(fs, javarepo, login, repoName)
+      case true => handleJavaRepoFiles(fs, javarepo, login, repoName)
       case false => log.sparkInfo(s"Repo ${login}/${repoName} has > 20K files, ignoring for now")
     }
+
+    // write repo details
+    val repoDetailsFileName = s"/tmp/kodebeagle-repodetails-$login~$repoName"
+    val repoDetailsWriter = new PrintWriter(new File(repoDetailsFileName))
+    try {
+      writeIndex("java", "repodetails", javarepo.summary,
+        Option(s"${login}/${repoName}"), repoDetailsWriter)
+    } finally {
+      repoDetailsWriter.close()
+    }
+
+    val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
+    moveIndex(repoDetailsFileName, "repodetails")
+
+    val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
+    repoCleanCmd.!!
 
     totalExecutorSize.getAndAdd(-javarepo.baseRepo.files.size)
     log.sparkInfo(s"Done processing repo ${login}/${repoName}")
   }
 
-  private def handleJavaRepo(fs: FileSystem, javarepo: JavaRepo,
+  private def handleJavaRepoFiles(fs: FileSystem, javarepo: JavaRepo,
                              login: String, repoName: String): String = {
-    import scala.sys.process._
     val srchRefFileName = s"/tmp/kodebeagle-srch-$login~$repoName"
     val srcFileName = s"/tmp/kodebeagle-src-$login~$repoName"
     val metaFileName = s"/tmp/kodebeagle-meta-$login~$repoName"
     val typesInfoFileName = s"/tmp/kodebeagle-typesInfo-$login~$repoName"
     val commentsFileName = s"/tmp/kodebeagle-javadoc-$login~$repoName"
+    val fileDetailsFileName = s"/tmp/kodebeagle-filedetails-$login~$repoName"
 
     val srchrefWriter = new PrintWriter(new File(srchRefFileName))
     val srcWriter = new PrintWriter(new File(srcFileName))
     val metaWriter = new PrintWriter(new File(metaFileName))
     val typesInfoWriter = new PrintWriter(new File(typesInfoFileName))
     val commentsWriter = new PrintWriter(new File(commentsFileName))
+    val fileDetailsWriter = new PrintWriter(new File(fileDetailsFileName))
 
     try {
       if (javarepo.files.isEmpty) {
@@ -175,12 +193,14 @@ object RepoAnalyzerJob extends Logger {
         writeIndex("java", "sourcefile", SourceFile(file.repoId, file.repoFileLocation,
           file.fileContent), fileLoc, srcWriter)
         writeIndex("java", "documentation", Comments(file.javaDocs), fileLoc, commentsWriter)
+        writeIndex("java", "filedetails", file.fileDetails, fileLoc, fileDetailsWriter)
         val typesInfoEntry = toJson(file.typesInFile)
         typesInfoWriter.write(typesInfoEntry + "\n")
-        file.free()
+        // file.free()
       })
     } finally {
-      Seq(srchrefWriter, srcWriter, metaWriter, typesInfoWriter, commentsWriter).foreach(_.close())
+      Seq(srchrefWriter, srcWriter, metaWriter, typesInfoWriter,
+        commentsWriter, fileDetailsWriter).foreach(_.close())
     }
 
     val moveIndex: (String, String) => Unit = moveFromLocal(login, repoName, fs)
@@ -189,11 +209,11 @@ object RepoAnalyzerJob extends Logger {
     moveIndex(metaFileName, "meta")
     moveIndex(typesInfoFileName, "typesinfo")
     moveIndex(commentsFileName, "comments")
+    moveIndex(fileDetailsFileName, "filedetails")
 
-    val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
-    log.info(s"Executing command: $repoCleanCmd")
-    repoCleanCmd.!!
-    s"rm -f $srcFileName $srchRefFileName $metaFileName $typesInfoFileName $commentsFileName".!!
+    val todel = Seq(srcFileName, srchRefFileName, metaFileName,
+      typesInfoFileName, commentsFileName, fileDetailsFileName).mkString(" ")
+    s"rm -f $todel".!!
   }
 
   private def writeIndex[T <: AnyRef <% Product with Serializable](index: String, typeName: String,

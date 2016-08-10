@@ -21,6 +21,7 @@ import com.kodebeagle.indexer._
 import com.kodebeagle.javaparser.JavaASTParser.ParseType
 import com.kodebeagle.javaparser.{JavaASTParser, SingleClassBindingResolver}
 import com.kodebeagle.logging.Logger
+import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import org.eclipse.jdt.core.dom.CompilationUnit
 
 import scala.util.Try
@@ -35,7 +36,7 @@ class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
     if (languages.contains(JAVA_LANGUAGE)) {
       baseRepo.files
         .filter(_.fileName.endsWith(".java"))
-        .map(f => new JavaFileInfo(f))
+        .map(f => new JavaFileInfo(f, this))
     } else {
       Nil
     }
@@ -44,9 +45,16 @@ class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
   override def statistics: JavaRepoStatistics = new JavaRepoStatistics(baseRepo.statistics)
 
   override def languages: Set[String] = baseRepo.languages
+
+  def summary: JavaRepoSummary = {
+    val agg = baseRepo.gitLogAggregation
+    JavaRepoSummary(GithubRepo.remote, baseRepo.repoInfo.get,
+      statistics, GitHistory(agg.mostChangedFiles().map(_._1), agg.allCommits.toList))
+  }
 }
 
-class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSupport with Logger {
+class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
+  with LazyLoadSupport with Logger {
 
   assert(baseFile.fileName.endsWith(".java"),
     s"A java file is expected. Actual file: ${baseFile.fileName}")
@@ -103,6 +111,13 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
       parse()
       _javaDoc.get
     })
+  }
+
+  def fileDetails: FileDetails = {
+    val agg = repo.baseRepo.gitLogAggregation
+    val file = baseFile.filePath
+    FileDetails(repoFileLocation, agg.fileCommitCount(file).toList,
+      agg.topAuthors(file, 5).map(_._1), agg.coOccuringFiles(file, 10).map(_._1))
   }
 
   override def fileName: String = baseFile.fileName
@@ -183,7 +198,14 @@ class JavaFileInfo(baseFile: GithubFileInfo) extends FileInfo with LazyLoadSuppo
   }
 }
 
-class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics {
+case class JavaRepoSummary(remote: String, gitHubInfo: GithubRepoInfo, stats: JavaRepoStatistics,
+                           gitHistory: GitHistory)
+case class GitHistory(mostChanged: List[String], commits: List[Commit])
+
+case class FileDetails(file: String, commits: List[Commit], topAuthors: List[String],
+                       coChange: List[String])
+
+class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics with Serializable {
 
   override def sloc: Int = repoStatistics.sloc
 
