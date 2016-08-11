@@ -20,20 +20,14 @@ package com.imaginea.kodebeagle.base.settings.ui;
 import com.imaginea.kodebeagle.base.action.RefreshActionBase;
 import com.imaginea.kodebeagle.base.model.Limits;
 import com.intellij.util.ui.UIUtil;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.event.MouseEvent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.SpinnerNumberModel;
+
+import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.plaf.metal.MetalSliderUI;
+import java.awt.*;
+import java.awt.event.MouseEvent;
 
 @SuppressWarnings("PMD")
 public class LimitsPanel {

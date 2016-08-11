@@ -23,9 +23,10 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindowManager;
+
 import java.io.IOException;
 
-public class SearchKodeBeagleAction extends AnAction {
+public class SearchAction extends AnAction {
 
     public final void actionPerformed(final AnActionEvent e) {
         Project project = e.getProject();

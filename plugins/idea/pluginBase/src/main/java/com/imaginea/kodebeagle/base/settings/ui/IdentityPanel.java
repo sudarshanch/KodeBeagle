@@ -19,17 +19,12 @@ package com.imaginea.kodebeagle.base.settings.ui;
 
 import com.imaginea.kodebeagle.base.model.Identity;
 import com.intellij.ide.BrowserUtil;
-import java.awt.Cursor;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+
+import javax.swing.*;
+import javax.swing.border.TitledBorder;
+import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.border.TitledBorder;
 
 @SuppressWarnings("PMD")
 public class IdentityPanel {

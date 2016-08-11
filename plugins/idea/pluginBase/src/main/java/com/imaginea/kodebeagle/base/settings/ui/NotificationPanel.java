@@ -18,12 +18,10 @@
 package com.imaginea.kodebeagle.base.settings.ui;
 
 import com.imaginea.kodebeagle.base.model.Notifications;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import javax.swing.JCheckBox;
-import javax.swing.JPanel;
+
+import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import java.awt.*;
 
 public class NotificationPanel {
 

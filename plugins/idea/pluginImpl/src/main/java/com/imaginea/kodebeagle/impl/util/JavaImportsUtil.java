@@ -32,6 +32,7 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiPackage;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;

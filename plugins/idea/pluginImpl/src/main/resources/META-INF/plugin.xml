@@ -45,7 +45,7 @@
     Milestones</a> on github.
     ]]>
     </change-notes>
-    <depends optional="true">org.intellij.scala</depends>
+    <!--<depends optional="true">org.intellij.scala</depends>-->
 
     <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Build+Number+Ranges for description -->
     <idea-version since-build="139"/>
@@ -64,7 +64,8 @@
         <!-- Add your project components here -->
     </project-components>
     <actions>
-        <!-- <action id="KodeBeagle" class="com.imaginea.kodebeagle.scalaplugin.action.SearchKodeBeagleAction" text="Search with KodeBeagle" icon="/icons/logo.png">
+        <!--  TODO for scala implementation
+        <action id="KodeBeagle" class="com.imaginea.kodebeagle.scalaplugin.action.SearchAction" text="Search with KodeBeagle" icon="/icons/logo.png">
              <add-to-group group-id="EditorPopupMenu" anchor="before" relative-to-action="$SearchWeb"/>
              <keyboard-shortcut keymap="$default" first-keystroke="alt 8"/>
          </action>-->
@@ -75,7 +76,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="KodeBeagle" icon= "/icons/logo.png" anchor="right" factoryClass="com.imaginea.kodebeagle.impl.ui.MainWindow"/>
         <applicationConfigurable instance="com.imaginea.kodebeagle.base.settings.ui.SettingsConfigurable"/>
-        <problemHighlightFilter implementation="com.imaginea.kodebeagle.impl.highlightfix.ScalaProblemHighlightFilter"/>
+       <!--  TODO for scala implementation <problemHighlightFilter implementation="com.imaginea.kodebeagle.impl.highlightfix.ScalaProblemHighlightFilter"/>-->
     </extensions>
 
 </idea-plugin>

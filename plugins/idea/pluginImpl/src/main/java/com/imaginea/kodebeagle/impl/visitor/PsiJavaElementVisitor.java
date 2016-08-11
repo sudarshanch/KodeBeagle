@@ -37,6 +37,7 @@ import com.intellij.psi.PsiTypeElement;
 import com.intellij.psi.impl.source.tree.JavaElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.siyeh.ig.psiutils.ClassUtils;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;

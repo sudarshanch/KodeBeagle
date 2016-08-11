@@ -20,14 +20,10 @@ package com.imaginea.kodebeagle.base.settings.ui;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.ui.UIBundle;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
 import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
+import java.awt.*;
 
 class PatternFilterEditorAddDialog extends DialogWrapper {
     private static final int NUM_OF_COLUMNS = 35;

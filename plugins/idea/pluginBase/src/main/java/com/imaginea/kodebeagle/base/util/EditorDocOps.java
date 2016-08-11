@@ -43,7 +43,8 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.Gray;
 import com.intellij.ui.JBColor;
-import java.awt.Color;
+
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;

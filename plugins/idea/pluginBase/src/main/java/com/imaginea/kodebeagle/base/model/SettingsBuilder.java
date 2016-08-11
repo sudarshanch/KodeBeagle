@@ -22,7 +22,7 @@ public class SettingsBuilder {
     private Identity identity;
     private Limits limits;
     private Imports imports;
-    private ElasticSearch elasticSearch;
+    private Search search;
     private Notifications notifications;
 
     public final Identity getIdentity() {
@@ -37,8 +37,8 @@ public class SettingsBuilder {
         return imports;
     }
 
-    public final ElasticSearch getElasticSearch() {
-        return elasticSearch;
+    public final Search getSearch() {
+        return search;
     }
 
     public final Notifications getNotifications() {
@@ -60,8 +60,8 @@ public class SettingsBuilder {
         return this;
     }
 
-    public final SettingsBuilder withElasticSearch(final ElasticSearch pElasticSearch) {
-        this.elasticSearch = pElasticSearch;
+    public final SettingsBuilder withElasticSearch(final Search pSearch) {
+        this.search = pSearch;
         return this;
     }
 

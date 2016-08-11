@@ -24,19 +24,13 @@ import com.intellij.codeInsight.navigation.actions.GotoTypeDeclarationAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.plugins.scala.lang.parser.ScalaElementTypes
-import org.jetbrains.plugins.scala.lang.psi.ScalaPsiElement
-import org.jetbrains.plugins.scala.lang.psi.api.ScalaRecursiveElementVisitor
-import org.jetbrains.plugins.scala.lang.psi.api.expr.{ScArgumentExprList, ScInfixExpr, ScReferenceExpression}
-import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScTypeDefinition
-import org.jetbrains.plugins.scala.lang.psi.impl.base.types.ScSimpleTypeElementImpl
-import org.jetbrains.plugins.scala.lang.psi.types.ScType
-import org.jetbrains.plugins.scala.lang.psi.types.result.TypingContext
-import org.jetbrains.plugins.scala.lang.refactoring.util.ScTypeUtil
 
 import scala.collection.JavaConverters._
 
-class PsiScalaElementVisitor(start: Int, end: Int) extends ScalaRecursiveElementVisitor {
+class PsiScalaElementVisitor(start: Int, end: Int) {
+
+  /* TODO for scala support
+  extends ScalaRecursiveElementVisitor {
   val importVsMethods = new util.HashMap[String, util.Set[String]]()
   private val project = WindowObjects.getInstance().getProject
   private val currentEditor = FileEditorManager.getInstance(project).getSelectedTextEditor
@@ -123,5 +117,5 @@ class PsiScalaElementVisitor(start: Int, end: Int) extends ScalaRecursiveElement
       case typeDef: ScTypeDefinition => typeDef.getTruncedQualifiedName.toString
       case _ => ""
     }
-  }
+  } */
 }

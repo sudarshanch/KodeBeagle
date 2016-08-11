@@ -21,7 +21,8 @@ import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import javax.swing.JTree;
+
+import javax.swing.*;
 
 public class CollapseProjectTreeAction extends AnAction {
     private WindowObjects windowObjects = WindowObjects.getInstance();

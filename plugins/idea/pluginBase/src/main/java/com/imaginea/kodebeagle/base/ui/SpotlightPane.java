@@ -19,8 +19,8 @@ package com.imaginea.kodebeagle.base.ui;
 
 import com.imaginea.kodebeagle.base.model.CodeInfo;
 import com.imaginea.kodebeagle.base.object.WindowObjects;
-import com.imaginea.kodebeagle.base.util.ESUtils;
 import com.imaginea.kodebeagle.base.util.EditorDocOps;
+import com.imaginea.kodebeagle.base.util.SearchUtils;
 import com.imaginea.kodebeagle.base.util.WindowEditorOps;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.editor.Document;
@@ -32,8 +32,9 @@ import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.JBColor;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
@@ -43,8 +44,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
 
 public class SpotlightPane {
     private static final int HGAP = 20;
@@ -61,7 +60,7 @@ public class SpotlightPane {
     private WindowObjects windowObjects = WindowObjects.getInstance();
     private WindowEditorOps windowEditorOps = new WindowEditorOps();
     private EditorDocOps editorDocOps = new EditorDocOps();
-    private ESUtils esUtils = new ESUtils();
+    private SearchUtils searchUtils = new SearchUtils();
     private final WrapLayout wrapLayout = new WrapLayout(FlowLayout.CENTER, HGAP, VGAP);
 
     public final void buildSpotlightPane(final List<CodeInfo> spotlightPaneTinyEditors) {
@@ -71,7 +70,7 @@ public class SpotlightPane {
 
         for (CodeInfo spotlightPaneTinyEditorInfo : spotlightPaneTinyEditors) {
             String fileName = spotlightPaneTinyEditorInfo.getAbsoluteFileName();
-            String fileContents = esUtils.getContentsForFile(fileName);
+            String fileContents = searchUtils.getContentsForFile(fileName);
             List<Integer> lineNumbers = spotlightPaneTinyEditorInfo.getLineNumbers();
             String contentsInLines = editorDocOps.getContentsInLines(fileContents, lineNumbers);
             createSpotlightPaneTinyEditor(spotlightPaneTinyEditorsJPanel,
@@ -101,7 +100,7 @@ public class SpotlightPane {
 
         JPanel expandPanel = new JPanel(wrapLayout);
 
-        final String projectName = esUtils.getProjectName(fileName);
+        final String projectName = searchUtils.getProjectName(fileName);
         final JLabel expandLabel =
                 new JLabel(String.format(BANNER_FORMAT, HTML_U, displayFileName, END_U_HTML));
         expandLabel.setForeground(JBColor.BLACK);

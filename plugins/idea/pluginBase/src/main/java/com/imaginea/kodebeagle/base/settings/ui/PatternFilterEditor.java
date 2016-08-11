@@ -31,26 +31,20 @@ import com.intellij.util.ui.ComponentWithEmptyText;
 import com.intellij.util.ui.ItemRemovable;
 import com.intellij.util.ui.StatusText;
 import com.intellij.util.ui.UIUtil;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import javax.swing.Icon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTable;
-import javax.swing.UIManager;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import java.awt.*;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 public class PatternFilterEditor extends JPanel implements ComponentWithEmptyText {
     private static final int WIDTH = 200;

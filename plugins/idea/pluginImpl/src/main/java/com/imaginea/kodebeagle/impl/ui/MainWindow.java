@@ -17,12 +17,10 @@
 
 package com.imaginea.kodebeagle.impl.ui;
 
-import com.imaginea.kodebeagle.base.ui.KBNotification;
 import com.imaginea.kodebeagle.base.ui.MainWindowBase;
 import com.imaginea.kodebeagle.impl.action.RefreshAction;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
-import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.Constraints;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.extensions.PluginId;
@@ -48,13 +46,17 @@ public class MainWindow extends MainWindowBase {
 
     @Override
     protected final boolean checkOptionalDependency() {
+        /*
+        TODO to be implememnted for scala support
         if (!scalaPluginInstalledAndEnabled()) {
             KBNotification.getInstance().notifyBalloon(SCALA_DISABLED_HELP,
                     NotificationType.WARNING);
             return false;
         } else {
             return true;
-        }
+        }*/
+
+        return true;
     }
 
     @NotNull

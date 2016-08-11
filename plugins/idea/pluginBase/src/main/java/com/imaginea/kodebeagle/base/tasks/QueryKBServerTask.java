@@ -23,8 +23,7 @@ import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.imaginea.kodebeagle.base.ui.KBNotification;
 import com.imaginea.kodebeagle.base.ui.ProjectTree;
 import com.imaginea.kodebeagle.base.ui.SpotlightPane;
-import com.imaginea.kodebeagle.base.util.ESUtils;
-import com.imaginea.kodebeagle.base.util.JSONUtils;
+import com.imaginea.kodebeagle.base.util.SearchUtils;
 import com.imaginea.kodebeagle.base.util.UIUtils;
 import com.intellij.icons.AllIcons;
 import com.intellij.notification.Notification;
@@ -33,19 +32,19 @@ import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.JTree;
-import javax.swing.ToolTipManager;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-import org.jetbrains.annotations.NotNull;
 
 public class QueryKBServerTask extends Task.Backgroundable {
-    public static final String EMPTY_ES_URL =
+    public static final String EMPTY_KB_URL =
             "<html>Elastic Search URL <br> %s <br> in idea settings is incorrect.<br> See "
                     + "<img src='" + AllIcons.General.Settings + "'/></html>";
     private static final String FORMAT = "%s %s %s";
@@ -69,9 +68,8 @@ public class QueryKBServerTask extends Task.Backgroundable {
     private static final double CONVERT_TO_SECONDS = 1000000000.0;
     private static final String RESULT_NOTIFICATION_FORMAT =
             "<br/> Showing %d of %d results (%.2f seconds)";
-    private static final String JAVA_SEARCH = "/importsmethods/typeimportsmethods/_search?source=";
-    private static final String SCALA_SEARCH = "/importsmethods/typescala/_search?source=";
     public static final int MIN_IMPORT_SIZE = 3;
+    public static final String SEARCH_QUERY = "/typerefs?query=";
     private final Map<String, Set<String>> finalImports;
     private final JTree jTree;
     private Notification notification;
@@ -80,8 +78,7 @@ public class QueryKBServerTask extends Task.Backgroundable {
     private String httpErrorMsg;
     private WindowObjects windowObjects = WindowObjects.getInstance();
     private ProjectTree projectTree = new ProjectTree();
-    private ESUtils esUtils = new ESUtils();
-    private JSONUtils jsonUtils = new JSONUtils();
+    private SearchUtils searchUtils = new SearchUtils();
     private List<CodeInfo> spotlightPaneTinyEditorsInfoList = new ArrayList<CodeInfo>();
     private UIUtils uiUtils = new UIUtils();
 
@@ -102,12 +99,12 @@ public class QueryKBServerTask extends Task.Backgroundable {
             double timeToFetchResults = (endTime - startTime) / CONVERT_TO_SECONDS;
 
             String notificationTitle = String.format(FORMAT, QUERIED,
-                    windowObjects.getEsURL(), FOR);
-            int resultCount = esUtils.getResultCount();
+                    windowObjects.getKbAPIURL(), FOR);
+            int resultCount = searchUtils.getResultCount();
             if (resultCount > 0) {
                 String notificationContent = " "
                         + getResultNotificationMessage(resultCount,
-                        esUtils.getTotalHitsCount(), timeToFetchResults);
+                        searchUtils.getTotalHitsCount(), timeToFetchResults);
                 notification = KBNotification.getInstance()
                         .notifyBalloon(notificationTitle + notificationContent,
                                 NotificationType.INFORMATION);
@@ -179,14 +176,15 @@ public class QueryKBServerTask extends Task.Backgroundable {
 
     private void doBackEndWork(final ProgressIndicator indicator) {
         indicator.setText(FETCHING_PROJECTS);
-        String esResultJson = getESQueryResultJson();
-        if (!esResultJson.equals(EMPTY_ES_URL)) {
-            projectNodes = getProjectNodes(esResultJson);
+        String kbResultJson = getKodebeagleSearchResultJson();
+        if (!kbResultJson.equals(EMPTY_KB_URL)) {
+            projectNodes = getProjectNodes(kbResultJson);
             indicator.setFraction(INDICATOR_FRACTION);
             if (!projectNodes.isEmpty()) {
                 indicator.setText(FETCHING_FILE_CONTENTS);
                 spotlightPaneTinyEditorsInfoList =
                         getSpotlightPaneTinyEditorsInfoList();
+
                 List<String> fileNamesList = getFileNamesListForTinyEditors();
                 if (fileNamesList != null) {
                     putChunkedFileContentInMap(fileNamesList);
@@ -219,7 +217,7 @@ public class QueryKBServerTask extends Task.Backgroundable {
     private void putChunkedFileContentInMap(final List<String> fileNamesList) {
         List<List<String>> subLists = Lists.partition(fileNamesList, CHUNK_SIZE);
         for (List<String> subList : subLists) {
-            esUtils.fetchContentsAndUpdateMap(subList);
+            searchUtils.fetchContentsAndUpdateMap(subList);
         }
     }
 
@@ -247,25 +245,26 @@ public class QueryKBServerTask extends Task.Backgroundable {
         return spotlightPaneTinyEditors;
     }
 
-    private Map<String, ArrayList<CodeInfo>> getProjectNodes(final String esResultJson) {
-        Map<String, String> fileTokensMap = esUtils.getFileTokens(esResultJson);
+    private Map<String, ArrayList<CodeInfo>> getProjectNodes(final String kbResultJson) {
+
+        Map<String, String> fileTokensMap = searchUtils.getFileTokens(kbResultJson);
+
         Map<String, ArrayList<CodeInfo>> pProjectNodes =
                 projectTree.updateProjectNodes(finalImports.keySet(), fileTokensMap);
-        esUtils.updateRepoStarsMap(esResultJson);
+
+        searchUtils.updateRepoStarsMap(kbResultJson);
+
         return pProjectNodes;
     }
 
-    private String getESQueryResultJson() {
-        String esQueryJson = jsonUtils.getESQueryJson(finalImports, windowObjects.getSize(),
-                windowObjects.isIncludeMethods());
-        String esQueryResultJson;
-        if (windowObjects.getLanguage().equals("java")) {
-            esQueryResultJson = esUtils.getESResultJson(esQueryJson,
-                    windowObjects.getEsURL() + JAVA_SEARCH);
-        } else {
-            esQueryResultJson = esUtils.getESResultJson(esQueryJson,
-                    windowObjects.getEsURL() + SCALA_SEARCH);
-        }
-        return esQueryResultJson;
+
+    private String getKodebeagleSearchResultJson() {
+
+        String kbQuery = searchUtils.getQueryJson(finalImports, windowObjects.isIncludeMethods(), 0, windowObjects.getSize() - 1);
+        String kbQueryResultJson = null;
+
+        kbQueryResultJson = searchUtils.getResponseJson(windowObjects.getKbAPIURL() + SEARCH_QUERY, kbQuery, false);
+
+        return kbQueryResultJson;
     }
 }

@@ -20,6 +20,7 @@ package com.imaginea.kodebeagle.base.model;
 import com.imaginea.kodebeagle.base.action.RefreshActionBase;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ui.classFilter.ClassFilter;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

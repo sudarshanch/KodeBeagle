@@ -19,7 +19,8 @@ package com.imaginea.kodebeagle.base.util;
 
 import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.intellij.util.ui.UIUtil;
-import javax.swing.JEditorPane;
+
+import javax.swing.*;
 
 public class UIUtils {
 

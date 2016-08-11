@@ -17,42 +17,41 @@
 
 package com.imaginea.kodebeagle.base.settings.ui;
 
-import com.imaginea.kodebeagle.base.model.ElasticSearch;
 import com.imaginea.kodebeagle.base.model.Identity;
 import com.imaginea.kodebeagle.base.model.Imports;
+import com.imaginea.kodebeagle.base.model.Search;
 import com.imaginea.kodebeagle.base.model.Limits;
 import com.imaginea.kodebeagle.base.model.Notifications;
 import com.imaginea.kodebeagle.base.model.Settings;
 import com.imaginea.kodebeagle.base.model.SettingsBuilder;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.ui.ComboBox;
+import org.jetbrains.annotations.Nls;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JTextField;
-import org.jetbrains.annotations.Nls;
-import org.jetbrains.annotations.Nullable;
 
 public class SettingsConfigurable implements Configurable {
     public static final String KODE_BEAGLE_SETTINGS = "KodeBeagle Settings";
     private SettingsPanel settingsPanel = new SettingsPanel();
     private JLabel beagleIdValue;
-    private ComboBox esURLComboBox;
+    private ComboBox apiURLComboBox;
     private IdentityPanel identityPanel;
     private LimitsPanel limitsPanel;
     private ImportsPanel importsPanel;
-    private ElasticSearchPanel elasticSearchPanel;
+    private SearchPanel searchPanel;
     private NotificationPanel notificationPanel;
 
     private void getFields() {
         beagleIdValue = settingsPanel.getBeagleIdValue();
-        esURLComboBox = settingsPanel.getEsURLComboBox();
+        apiURLComboBox = settingsPanel.getEsURLComboBox();
         identityPanel = settingsPanel.getIdentityPanel();
         limitsPanel = settingsPanel.getLimitsPanel();
         importsPanel = settingsPanel.getImportsPanel();
-        elasticSearchPanel = settingsPanel.getElasticSearchPanel();
+        searchPanel = settingsPanel.getSearchPanel();
         notificationPanel = settingsPanel.getNotificationPanel();
     }
 
@@ -82,11 +81,11 @@ public class SettingsConfigurable implements Configurable {
         Settings newSettings = getNewSettings();
         List<String> currentEsURLs =
                 new ArrayList<>(
-                        Arrays.asList(newSettings.getElasticSearch().getEsURLS()));
-        String esURL = ((JTextField) esURLComboBox.getEditor().getEditorComponent()).getText();
+                        Arrays.asList(newSettings.getSearch().getApiURLS()));
+        String esURL = ((JTextField) apiURLComboBox.getEditor().getEditorComponent()).getText();
         if (!currentEsURLs.contains(esURL)) {
             currentEsURLs.add(esURL);
-            newSettings.getElasticSearch().setEsURLS(
+            newSettings.getSearch().setApiURLS(
                     currentEsURLs.toArray(new String[currentEsURLs.size()]));
         }
         newSettings.getIdentity().loadBeagleId();
@@ -98,11 +97,11 @@ public class SettingsConfigurable implements Configurable {
         Identity identity = identityPanel.getIdentity();
         Limits limits = limitsPanel.getLimits();
         Imports imports = importsPanel.getImports();
-        ElasticSearch elasticSearch = elasticSearchPanel.getElasticSearch();
+        Search search = searchPanel.getKodeBeagleSearch();
         Notifications notifications = notificationPanel.getNotifications();
         return SettingsBuilder.settings().withIdentity(identity)
                 .withLimits(limits).withImports(imports)
-                .withElasticSearch(elasticSearch)
+                .withElasticSearch(search)
                 .withNotifications(notifications).build();
     }
 
@@ -112,7 +111,7 @@ public class SettingsConfigurable implements Configurable {
         identityPanel.reset(mySettings.getIdentity());
         limitsPanel.reset(mySettings.getLimits());
         importsPanel.reset(mySettings.getImports());
-        elasticSearchPanel.reset(mySettings.getElasticSearch());
+        searchPanel.reset(mySettings.getSearch());
         notificationPanel.reset(mySettings.getNotifications());
     }
 

@@ -23,7 +23,7 @@ public class Settings {
     private Identity identity;
     private Limits limits;
     private Imports imports;
-    private ElasticSearch elasticSearch;
+    private Search search;
     private Notifications notifications;
 
     public Settings(final SettingsBuilder pSettingsBuilder) {
@@ -36,8 +36,8 @@ public class Settings {
         if (pSettingsBuilder.getImports() != null) {
             imports = pSettingsBuilder.getImports();
         }
-        if (pSettingsBuilder.getElasticSearch() != null) {
-            elasticSearch = pSettingsBuilder.getElasticSearch();
+        if (pSettingsBuilder.getSearch() != null) {
+            search = pSettingsBuilder.getSearch();
         }
         if (pSettingsBuilder.getNotifications() != null) {
             notifications = pSettingsBuilder.getNotifications();
@@ -49,7 +49,7 @@ public class Settings {
         identity = new Identity();
         limits = new Limits();
         imports = new Imports();
-        elasticSearch = new ElasticSearch();
+        search = new Search();
         notifications = new Notifications();
     }
 
@@ -65,8 +65,8 @@ public class Settings {
         return imports;
     }
 
-    public final ElasticSearch getElasticSearch() {
-        return elasticSearch;
+    public final Search getSearch() {
+        return search;
     }
 
     public final Notifications getNotifications() {
@@ -85,7 +85,7 @@ public class Settings {
         return this.getIdentity().equals(settings.getIdentity())
                 && this.getLimits().equals(settings.getLimits())
                 && this.getImports().equals(settings.getImports())
-                && this.getElasticSearch().equals(settings.getElasticSearch())
+                && this.getSearch().equals(settings.getSearch())
                 && this.getNotifications().equals(settings.getNotifications());
     }
 
@@ -101,8 +101,8 @@ public class Settings {
         if (imports != null) {
             hashCode = PRIME * imports.hashCode() + hashCode;
         }
-        if (elasticSearch != null) {
-            hashCode = PRIME * elasticSearch.hashCode() + hashCode;
+        if (search != null) {
+            hashCode = PRIME * search.hashCode() + hashCode;
         }
         if (notifications != null) {
             hashCode = PRIME * notifications.hashCode() + hashCode;
@@ -114,7 +114,7 @@ public class Settings {
         identity.save();
         limits.save();
         imports.save();
-        elasticSearch.save();
+        search.save();
         notifications.save();
     }
 }

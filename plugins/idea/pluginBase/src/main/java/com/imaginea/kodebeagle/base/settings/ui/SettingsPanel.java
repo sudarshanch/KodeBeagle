@@ -18,12 +18,9 @@
 package com.imaginea.kodebeagle.base.settings.ui;
 
 import com.intellij.openapi.ui.ComboBox;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+
+import javax.swing.*;
+import java.awt.*;
 
 public class SettingsPanel {
 
@@ -67,8 +64,8 @@ public class SettingsPanel {
         return notificationPanel;
     }
 
-    public final ElasticSearchPanel getElasticSearchPanel() {
-        return elasticSearchPanel;
+    public final SearchPanel getSearchPanel() {
+        return searchPanel;
     }
 
     public final ImportsPanel getImportsPanel() {
@@ -84,7 +81,7 @@ public class SettingsPanel {
     }
 
     private final ImportsPanel importsPanel = new ImportsPanel();
-    private final ElasticSearchPanel elasticSearchPanel = new ElasticSearchPanel();
+    private final SearchPanel searchPanel = new SearchPanel();
     private final NotificationPanel notificationPanel = new NotificationPanel();
 
     public final JLabel getBeagleIdValue() {
@@ -92,7 +89,7 @@ public class SettingsPanel {
     }
 
     public final ComboBox getEsURLComboBox() {
-        return elasticSearchPanel.getEsURLComboBox();
+        return searchPanel.getKbApiURLComboBox();
     }
 
     public final PatternFilterEditor getImportsPatternFilter() {
@@ -109,7 +106,7 @@ public class SettingsPanel {
         settingsPanel.add(identityPanel.getPanel(), firstPanel);
         settingsPanel.add(limitsPanel.getPanel(), secondPanel);
         settingsPanel.add(importsPanel.getPanel(), thirdPanel);
-        settingsPanel.add(elasticSearchPanel.getPanel(), fourthPanel);
+        settingsPanel.add(searchPanel.getPanel(), fourthPanel);
         settingsPanel.add(notificationPanel.getPanel(), fifthPanel);
         return settingsPanel;
     }

@@ -25,6 +25,8 @@ import com.intellij.openapi.roots.PackageIndex;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.classFilter.ClassFilter;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +37,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import org.jetbrains.annotations.NotNull;
 
 public abstract class ImportsUtilBase {
 

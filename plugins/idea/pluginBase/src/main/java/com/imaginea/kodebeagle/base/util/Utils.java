@@ -19,6 +19,9 @@ package com.imaginea.kodebeagle.base.util;
 
 import com.imaginea.kodebeagle.base.ui.KBNotification;
 import com.intellij.openapi.util.io.FileUtil;
+import org.apache.commons.codec.binary.Hex;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,8 +33,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import org.apache.commons.codec.binary.Hex;
-import org.jetbrains.annotations.NotNull;
 
 public final class Utils {
 

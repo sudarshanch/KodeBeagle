@@ -20,16 +20,24 @@ package com.imaginea.kodebeagle.base.ui;
 import com.imaginea.kodebeagle.base.model.CodeInfo;
 import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.imaginea.kodebeagle.base.tasks.FetchFileContentTask;
-import com.imaginea.kodebeagle.base.util.ESUtils;
 import com.imaginea.kodebeagle.base.util.EditorDocOps;
-import com.imaginea.kodebeagle.base.util.JSONUtils;
+import com.imaginea.kodebeagle.base.util.SearchUtils;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.impl.DocumentImpl;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.vfs.VirtualFile;
-import java.awt.Component;
+
+import javax.swing.*;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeCellRenderer;
+import javax.swing.tree.TreeNode;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -47,24 +55,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import javax.swing.AbstractAction;
-import javax.swing.ImageIcon;
-import javax.swing.JMenuItem;
-import javax.swing.JPopupMenu;
-import javax.swing.JTree;
-import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeCellRenderer;
-import javax.swing.tree.MutableTreeNode;
-import javax.swing.tree.TreeCellRenderer;
-import javax.swing.tree.TreeNode;
 
 public class ProjectTree {
     private static final String OPEN_IN_NEW_TAB = "Open in New Tab";
     private WindowObjects windowObjects = WindowObjects.getInstance();
-    private ESUtils esUtils = new ESUtils();
-    private JSONUtils jsonUtils = new JSONUtils();
+    private SearchUtils searchUtils = new SearchUtils();
     private EditorDocOps editorDocOps = new EditorDocOps();
     private static final String GITHUB_LINK = "https://github.com/";
     private static final String GITHUB_ICON = "icons/github_icon.png";
@@ -100,13 +95,13 @@ public class ProjectTree {
             List<Integer> lineNumbers;
 
             if (!windowObjects.getFileNameNumbersMap().containsKey(fileName)) {
-                lineNumbers = jsonUtils.getLineNumbers(imports, tokens);
+                lineNumbers = searchUtils.getLineNumbers(imports, tokens);
                 windowObjects.getFileNameNumbersMap().put(fileName, lineNumbers);
             } else {
                 lineNumbers = windowObjects.getFileNameNumbersMap().get(fileName);
             }
             CodeInfo codeInfo = new CodeInfo(fileName, lineNumbers);
-            String projectName = esUtils.getProjectName(fileName);
+            String projectName = searchUtils.getProjectName(fileName);
 
             if (projectNodes.containsKey(projectName)) {
                 projectNodes.get(projectName).add(codeInfo);

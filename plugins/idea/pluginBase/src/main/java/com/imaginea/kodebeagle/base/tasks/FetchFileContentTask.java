@@ -19,16 +19,17 @@ package com.imaginea.kodebeagle.base.tasks;
 
 import com.imaginea.kodebeagle.base.model.CodeInfo;
 import com.imaginea.kodebeagle.base.object.WindowObjects;
-import com.imaginea.kodebeagle.base.util.ESUtils;
 import com.imaginea.kodebeagle.base.util.EditorDocOps;
+import com.imaginea.kodebeagle.base.util.SearchUtils;
 import com.imaginea.kodebeagle.base.util.WindowEditorOps;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
-import java.util.List;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 public class FetchFileContentTask extends Task.Backgroundable {
 
@@ -39,7 +40,7 @@ public class FetchFileContentTask extends Task.Backgroundable {
     private WindowObjects windowObjects = WindowObjects.getInstance();
     private WindowEditorOps windowEditorOps = new WindowEditorOps();
     private EditorDocOps editorDocOps = new EditorDocOps();
-    private ESUtils esUtils = new ESUtils();
+    private SearchUtils searchUtils = new SearchUtils();
 
     public FetchFileContentTask(final Project project, final CodeInfo pCodeInfo) {
         super(project, KODE_BEAGLE, true, PerformInBackgroundOption.ALWAYS_BACKGROUND);
@@ -51,7 +52,7 @@ public class FetchFileContentTask extends Task.Backgroundable {
         indicator.setText(FETCHING_FILE_CONTENT);
         indicator.setFraction(0.0);
         String fileName = codeInfo.getAbsoluteFileName();
-        fileContents = esUtils.getContentsForFile(fileName);
+        fileContents = searchUtils.getContentsForFile(fileName);
 
         //Setting contents so that we can use that for Open in New Tab
         codeInfo.setContents(fileContents);

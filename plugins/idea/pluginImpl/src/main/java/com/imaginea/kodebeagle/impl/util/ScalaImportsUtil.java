@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+// TODO will use for scala support
 package com.imaginea.kodebeagle.impl.util;
 
 import com.imaginea.kodebeagle.base.object.WindowObjects;
@@ -29,9 +30,12 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
 import java.util.Map;
 import java.util.Set;
-import org.jetbrains.plugins.scala.lang.psi.impl.ScalaFileImpl;
+// import org.jetbrains.plugins.scala.lang.psi.impl.ScalaFileImpl;
 
-public class ScalaImportsUtil extends ImportsUtilBase {
+public class ScalaImportsUtil {
+  /* TODO for scala support
+  public class ScalaImportsUtil extends ImportsUtilBase {
+
     private WindowObjects windowObjects = WindowObjects.getInstance();
 
     @Override
@@ -58,5 +62,6 @@ public class ScalaImportsUtil extends ImportsUtilBase {
             }
         }
         return scalaElementVisitor.importVsMethods();
-    }
+    }*/
 }
+

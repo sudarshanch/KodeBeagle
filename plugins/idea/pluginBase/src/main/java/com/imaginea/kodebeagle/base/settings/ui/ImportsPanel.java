@@ -20,16 +20,14 @@ package com.imaginea.kodebeagle.base.settings.ui;
 import com.imaginea.kodebeagle.base.model.Imports;
 import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.intellij.ui.classFilter.ClassFilter;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+
+import javax.swing.*;
+import javax.swing.border.TitledBorder;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Arrays;
 import java.util.List;
-import javax.swing.JCheckBox;
-import javax.swing.JPanel;
-import javax.swing.border.TitledBorder;
 
 public class ImportsPanel {
 

@@ -26,13 +26,14 @@ import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.roots.{JavaProjectRootsUtil, ProjectRootManager}
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
-import org.jetbrains.plugins.scala.ScalaFileType
+// import org.jetbrains.plugins.scala.ScalaFileType
 
 // scalastyle:off
 class ScalaProblemHighlightFilter extends ProblemHighlightFilter {
   private val BUILD = 143
 
-  def shouldHighlight(file: PsiFile): Boolean = {
+  def shouldHighlight(file: PsiFile): Boolean = {/*
+  TODO for scala support
     if (MainWindow.scalaPluginInstalledAndEnabled()) {
       val result = file.getFileType != ScalaFileType.SCALA_FILE_TYPE ||
         !JavaProjectRootsUtil.isOutsideJavaSourceRoot(file) ||
@@ -46,10 +47,12 @@ class ScalaProblemHighlightFilter extends ProblemHighlightFilter {
       }
     } else {
       false
-    }
+    }*/
+    return true
   }
 
-  override def shouldProcessInBatch(file: PsiFile): Boolean = {
+  override def shouldProcessInBatch(file: PsiFile): Boolean = {/*
+  TODO for scala support
     if (MainWindow.scalaPluginInstalledAndEnabled()) {
       if (ProblemHighlightFilter.shouldHighlightFile(file)) {
         if (file.getFileType == ScalaFileType.SCALA_FILE_TYPE) {
@@ -63,6 +66,7 @@ class ScalaProblemHighlightFilter extends ProblemHighlightFilter {
       } else false
     } else {
       false
-    }
+    }*/
+    return true
   }
 }

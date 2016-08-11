@@ -21,12 +21,11 @@ import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
+
+import javax.swing.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
-import javax.swing.JTree;
 
 @SuppressWarnings("PMD")
 public final class WindowObjects {
@@ -38,7 +37,7 @@ public final class WindowObjects {
     private Editor windowEditor;
     private int distance;
     private int size;
-    private String esURL;
+    private String kbAPIURL;
     private Map<String, String> fileNameContentsMap = new HashMap<String, String>();
     private Map<String, List<Integer>> fileNameNumbersMap = new HashMap<String, List<Integer>>();
     private Map<String, String> repoStarsMap = new HashMap<String, String>();
@@ -148,12 +147,12 @@ public final class WindowObjects {
         return size;
     }
 
-    public void setEsURL(final String pesURL) {
-        this.esURL = pesURL;
+    public void setKbAPIURL(final String pesURL) {
+        this.kbAPIURL = pesURL;
     }
 
-    public String getEsURL() {
-        return esURL;
+    public String getKbAPIURL() {
+        return kbAPIURL;
     }
 
     public static WindowObjects getInstance() {

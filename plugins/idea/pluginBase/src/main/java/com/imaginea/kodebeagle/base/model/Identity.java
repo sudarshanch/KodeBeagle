@@ -20,6 +20,7 @@ package com.imaginea.kodebeagle.base.model;
 import com.imaginea.kodebeagle.base.action.RefreshActionBase;
 import com.imaginea.kodebeagle.base.object.WindowObjects;
 import com.intellij.ide.util.PropertiesComponent;
+
 import java.util.UUID;
 
 public class Identity {

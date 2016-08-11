@@ -39,24 +39,25 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.jetbrains.annotations.NotNull;
 
 public abstract class RefreshActionBase extends AnAction {
-    public static final String EMPTY_ES_URL =
-            "<html>Elastic Search URL <br> %s <br> in idea settings is incorrect.<br> See "
+    public static final String EMPTY_KB_API_URL =
+            "<html>KodeBeagle API URL <br> %s <br> in idea settings is incorrect.<br> See "
                     + "<img src='" + AllIcons.General.Settings + "'/></html>";
-    public static final String ES_URL = "esURL";
-    public static final String ES_URL_VALUES = "esURL Values";
-    public static final String ES_URL_CHECKBOX_VALUE = "Es URL checkbox value";
-    public static final String ES_URL_DEFAULT_CHECKBOX_VALUE = "false";
+    public static final String KB_API_URL = "kbAPIURL";
+    public static final String KB_API_URL_VALUES = "kbAPIURL Values";
+    public static final String KB_API_URL_CHECKBOX_VALUE = "Kb Api URL checkbox value";
+    public static final String KB_API_URL_DEFAULT_CHECKBOX_VALUE = "false";
     public static final String LINES_FROM_CURSOR = "lines";
     public static final String SIZE = "size";
-    public static final String ES_URL_DEFAULT = "http://labs.imaginea.com/kodebeagle";
+    public static final String KODEBEAGLE_API_URL_DEFAULT = "http://labs.imaginea.com/kodebeagle";
     public static final int LINES_FROM_CURSOR_DEFAULT_VALUE = 0;
     public static final int SIZE_DEFAULT_VALUE = 30;
     public static final String EDITOR_ERROR =
@@ -154,7 +155,7 @@ public abstract class RefreshActionBase extends AnAction {
             windowObjects.setProject(project);
             windowObjects.setDistance(currentSettings.getLimits().getLinesFromCursor());
             windowObjects.setSize(currentSettings.getLimits().getResultSize());
-            windowObjects.setEsURL(currentSettings.getElasticSearch().getSelectedEsURL());
+            windowObjects.setKbAPIURL(currentSettings.getSearch().getSelectedApiURL());
             windowObjects.setMaxTinyEditors(currentSettings.getLimits().getTopCount());
             windowObjects.retrieveIncludeMethods();
             windowEditorOps.writeToDocument("", windowObjects.getWindowEditor().getDocument());
