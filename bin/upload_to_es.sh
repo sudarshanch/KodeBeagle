@@ -338,6 +338,120 @@ curl -XPUT localhost:9200/java/documentation/_mapping -d '{
 	}
 }'
 
+curl -XPUT localhost:9200/java/filedetails/_mapping -d '{
+  "filedetails": {
+    "properties": {
+      "file": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "commits": {
+        "type": "object",
+        "enabled": "false"
+      },
+      "topAuthors": {
+        "type": "string",
+        "index": "no"
+      },
+      "coChange": {
+        "type": "string",
+        "index": "no"
+      }
+    }
+  }
+}'
+ 
+
+curl -XPUT localhost:9200/java/repodetails/_mapping -d '{
+  "repodetails": {
+    "properties": {
+      "remote": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "gitHubInfo": {
+        "properties": {
+          "id": {
+            "type": "long",
+            "index": "not_analyzed"
+          },
+          "login": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "name": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "fullName": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "index": "not_analyzed"
+          },
+          "isFork": {
+            "type": "boolean",
+            "index": "not_analyzed"
+          },
+          "size": {
+            "type": "long",
+            "index": "not_analyzed"
+          },
+          "watchersCount": {
+            "type": "long",
+            "index": "not_analyzed"
+          },
+          "language": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "forksCount": {
+            "type": "long",
+            "index": "not_analyzed"
+          },
+          "subscribersCount": {
+            "type": "long",
+            "index": "not_analyzed"
+          },
+          "defaultBranch": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "stargazersCount": {
+            "type": "long",
+            "index": "not_analyzed"
+          }
+        }
+      },
+      "stats": {
+      "properties": {
+        "sloc": {
+          "type": "long",
+          "index": "not_analyzed"
+        },
+        "fileCount": {
+          "type": "long",
+          "index": "not_analyzed"
+        },
+        "size": {
+          "type": "long",
+          "index": "not_analyzed"
+        }
+      	}
+      },
+      "gitHistory": {
+        "type": "object",
+        "enabled": false
+      }
+    }
+  }
+}'
+
+
+
+
 for f in `find $1 -name '*'`
 do
     echo "uploading $f to elasticsearch."

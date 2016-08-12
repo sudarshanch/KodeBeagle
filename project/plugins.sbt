@@ -10,7 +10,7 @@ addSbtPlugin("de.johoop" % "findbugs4sbt" % "1.4.0")
 
 addSbtPlugin("de.johoop" % "cpd4sbt" % "1.1.5")
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.8.4")
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.8.5")
 
 resolvers += "corux-releases" at "http://tomcat.corux.de/nexus/content/repositories/releases/"
 
