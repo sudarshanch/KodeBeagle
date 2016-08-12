@@ -31,18 +31,25 @@ class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
 
   // TODO: This constants needs to go somewhere else
   private val JAVA_LANGUAGE = "java"
+  var _files: Option[List[JavaFileInfo]] = None
+  var _statistics: Option[JavaRepoStatistics] = None
 
-  override def files: List[JavaFileInfo] = {
+  override def files: List[JavaFileInfo] = getOrCompute(_files, () =>{
     if (languages.contains(JAVA_LANGUAGE)) {
-      baseRepo.files
+      _files = Option(baseRepo.files
         .filter(_.fileName.endsWith(".java"))
-        .map(f => new JavaFileInfo(f, this))
+        .map(f => new JavaFileInfo(f, this)))
     } else {
-      Nil
+      _files = Option(Nil)
     }
-  }
+    _files.get
+  })
 
-  override def statistics: JavaRepoStatistics = new JavaRepoStatistics(baseRepo.statistics)
+  override def statistics: JavaRepoStatistics = getOrCompute(_statistics, () => {
+    _statistics = Option(new JavaRepoStatistics(files.map(_.fileContent.lines.size).sum,
+      files.size, files.map(_.fileContent.size).sum))
+    _statistics.get
+  })
 
   override def languages: Set[String] = baseRepo.languages
 
@@ -69,7 +76,7 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
 
   private var _typesInFile: Option[TypesInFile] = None
 
-  private var _javaDoc: Option[Set[CommentIndices]] = None
+  private var _javaDoc: Option[Set[TypeDocsIndices]] = None
 
   def searchableRefs: TypeReference = {
     getOrCompute(_searchableRefs, () => {
@@ -106,7 +113,7 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
     })
   }
 
-  def javaDocs: Set[CommentIndices] = {
+  def javaDocs: Set[TypeDocsIndices] = {
     getOrCompute(_javaDoc, () => {
       parse()
       _javaDoc.get
@@ -205,14 +212,8 @@ case class GitHistory(mostChanged: List[String], commits: List[Commit])
 case class FileDetails(file: String, commits: List[Commit], topAuthors: List[String],
                        coChange: List[String])
 
-class JavaRepoStatistics(repoStatistics: RepoStatistics) extends RepoStatistics with Serializable {
+case class JavaRepoStatistics(sloc: Int, fileCount: Int, size: Long) extends RepoStatistics
 
-  override def sloc: Int = repoStatistics.sloc
-
-  override def fileCount: Int = repoStatistics.fileCount
-
-  override def size: Long = repoStatistics.size
-}
 
 object JavaFileInfo {
 
@@ -227,7 +228,7 @@ object JavaFileInfo {
   val _emptyUsedTypesMap = Map.empty[String,(Set[String],Set[MethodType])]
   val _emptyImports: Option[Set[String]] = Option(Set.empty)
   val _emptySuperTypes = SuperTypes(Map.empty, Map.empty)
-  val _emptyJavaDocs: Option[Set[CommentIndices]] = Option(Set.empty)
+  val _emptyJavaDocs: Option[Set[TypeDocsIndices]] = Option(Set.empty)
 
   def emptySearchableRefs(repoFileLocation: String): Option[TypeReference] =
     Option(TypeReference(_emptyContextSet, Payload(_emptyPayLoadTypeSet,

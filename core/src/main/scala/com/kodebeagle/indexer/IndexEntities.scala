@@ -88,7 +88,9 @@ case class TypesInFile(repoName: String, fileName: String,
                        // declared types -> methods
                        declaredTypes: Map[String, Set[MethodType]])
 
-case class CommentIndices(fileName: String, typeName: String,
-                          typeComment: String, methodComments: Map[String,String])
+case class PropertyDocs(propertyName: String, propertyDoc: String) extends Property
 
-case class Comments(comments: Set[CommentIndices])
+case class TypeDocsIndices(typeName: String, typeDoc: String,
+                           propertyDocs: Set[PropertyDocs]) extends Property
+
+case class Docs(fileName: String, docs: Set[TypeDocsIndices])

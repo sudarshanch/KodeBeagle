@@ -21,7 +21,7 @@ import java.io.{File, PrintWriter}
 import java.util.concurrent.atomic.AtomicLong
 
 import com.kodebeagle.configuration.KodeBeagleConfig
-import com.kodebeagle.indexer.{Comments, SourceFile}
+import com.kodebeagle.indexer.{Docs, SourceFile}
 import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import com.kodebeagle.model.{GithubRepo, JavaRepo}
@@ -32,8 +32,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import org.apache.spark.{SerializableWritable, SparkConf}
-import scala.sys.process._
 
+import scala.sys.process._
 import scala.util.Try
 
 object RepoAnalyzerJob extends Logger {
@@ -192,8 +192,9 @@ object RepoAnalyzerJob extends Logger {
         writeIndex("java", "filemetadata", file.fileMetaData, fileLoc, metaWriter)
         writeIndex("java", "sourcefile", SourceFile(file.repoId, file.repoFileLocation,
           file.fileContent), fileLoc, srcWriter)
-        writeIndex("java", "documentation", Comments(file.javaDocs), fileLoc, commentsWriter)
         writeIndex("java", "filedetails", file.fileDetails, fileLoc, fileDetailsWriter)
+        writeIndex("java", "documentation",
+          Docs(file.repoFileLocation, file.javaDocs),fileLoc, commentsWriter)
         val typesInfoEntry = toJson(file.typesInFile)
         typesInfoWriter.write(typesInfoEntry + "\n")
         // file.free()

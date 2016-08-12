@@ -48,9 +48,9 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
 
   test("Statistics Check") {
     val repoStatistics: JavaRepoStatistics = testJavaRepo.get.statistics
-    assert(repoStatistics.fileCount == 7)
-    assert(repoStatistics.size == 13728)
-    assert(repoStatistics.sloc == 463)
+    assert(repoStatistics.fileCount == 5)
+    assert(repoStatistics.size == 11727)
+    assert(repoStatistics.sloc == 397)
   }
 
   test("JavaFileInfo.isTestFile check") {

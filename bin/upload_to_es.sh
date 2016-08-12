@@ -212,7 +212,7 @@ curl -XPUT localhost:9200/java/filemetadata/_mapping -d '{
           },
           "loc": {
             "type": "string",
-            "enabled": false
+            "index": "no"
           }
         }
       },
@@ -269,7 +269,7 @@ curl -XPUT localhost:9200/java/repotopic/_mapping -d '{
 			"login": {
 				"type": "string"
 			},
-			"name": {
+			"repoName": {
 				"type": "string"
 			},
 			"files": {
@@ -295,6 +295,46 @@ curl -XPUT localhost:9200/java/repotopic/_mapping -d '{
 				}
 			}
 		}
+	}
+}'
+
+
+curl -XPUT localhost:9200/java/documentation/_mapping -d '{
+	"documentation": {
+		"properties": {
+			"fileName": {
+				"type": "string",
+				"index": "not_analyzed"
+			},
+			"docs": {
+                "type": "nested",
+                "include_in_parent": true,
+                "properties": {
+                    "typeName": {
+                      "type": "string",
+                      "analyzer": "keyword_analyzer"
+                    },
+                    "typeDoc": {
+                      "type": "string",
+                      "index": "no"
+                    },
+                    "propertyDocs": {
+                       "properties": {
+                         "propertyName": {
+                           "type": "string",
+                           "analyzer": "keyword_analyzer"
+                         },
+                         "propertyDoc": {
+                           "type": "string",
+                           "index": "no"
+                         }
+                       }
+
+                    }
+                }
+
+            }
+        }
 	}
 }'
 

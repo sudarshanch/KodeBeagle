@@ -218,7 +218,7 @@ class GitLogAggregation() extends Logger {
   val fileCommitCount: mutable.Map[String, mutable.ListBuffer[Commit]] = mutable.Map.empty
 
   private def handleCommit(commitStr: String) = {
-    currentCommit = Option(read[Commit](commitStr))
+    currentCommit = Option(read[Commit](commitStr.replace("\\", "\\\\")))
     allCommits.add(currentCommit.get)
     // start with empty set on encountering a new commit
     filesInCurrentCommit = mutable.Set.empty
