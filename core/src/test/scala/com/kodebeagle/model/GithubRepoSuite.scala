@@ -62,6 +62,9 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
         logAgg.coOccuringFiles(file, 5).foreach(e => print(s"\t $e \n"))
       }
     }) */
+
+    // to reproduce issue #600, replace gitRepoPath in this file to local hyperic/hqapi location
+    val filedetaisl = new JavaRepo(repo.get).files.map(_.fileDetails)
   }
 
   def time[T](name: String, block: => T): T = {

@@ -24,6 +24,7 @@ import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import org.eclipse.jdt.core.dom.CompilationUnit
 
+import scala.collection.mutable
 import scala.util.Try
 
 class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
@@ -121,10 +122,13 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
   }
 
   def fileDetails: FileDetails = {
+    // TODO: Revisit #600 and explain why it happens
     val agg = repo.baseRepo.gitLogAggregation
     val file = baseFile.filePath
-    FileDetails(repoFileLocation, agg.fileCommitCount(file).toList,
-      agg.topAuthors(file, 5).map(_._1), agg.coOccuringFiles(file, 10).map(_._1))
+    val commitCount = agg.fileCommitCount.getOrElse(file, mutable.ListBuffer.empty).toList
+    val topAuthors = agg.topAuthors(file, 5).map(_._1)
+    val cooccuring = agg.coOccuringFiles(file, 10).map(_._1)
+    FileDetails(repoFileLocation, commitCount, topAuthors, cooccuring)
   }
 
   override def fileName: String = baseFile.fileName
