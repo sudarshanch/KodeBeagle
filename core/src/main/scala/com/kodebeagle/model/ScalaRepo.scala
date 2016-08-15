@@ -29,19 +29,10 @@ class ScalaRepo(baseRepo: GithubRepo) extends Repo with Logger
   // TODO: This constants needs to go somewhere else
   private val SCALA_LANGUAGE = "java"
 
-  override def files: List[ScalaFileInfo] = {
-    if (languages.contains(SCALA_LANGUAGE)) {
-      baseRepo.files
-        .filter(_.fileName.endsWith(".scala"))
-        .map(f => new ScalaFileInfo(f))
-    } else {
-      Nil
-    }
+  override def files: Iterator[ScalaFileInfo] = {
+    baseRepo.files.filter(_.extractLang().equalsIgnoreCase("java"))
+      .map(new ScalaFileInfo(_))
   }
-
-  override def statistics: RepoStatistics = baseRepo.statistics
-
-  override def languages: Set[String] = baseRepo.languages
 
 }
 

@@ -19,11 +19,8 @@ package com.kodebeagle.model
 
 trait Repo extends Serializable {
 
-  def files: List[FileInfo]
+  def files: Iterator[FileInfo]
 
-  def statistics: RepoStatistics
-
-  def languages: Set[String]
 }
 
 trait FileInfo extends Serializable {

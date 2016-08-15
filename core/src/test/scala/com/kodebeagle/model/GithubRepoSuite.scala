@@ -40,6 +40,7 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
     assert(files.size == 7)
   }
 
+  // scalastyle:off
   test("repo git history aggregation") {
     val repository = repo.get.repository
     val git = new Git(repository)
@@ -53,18 +54,18 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
     val logAgg = time("gitLogAgg", repo.get.analyzeHistory())
     // print(logAgg.allCommits.size + "\n")
 
-    /* logAgg.mostChangedFiles(10).foreach({
+     logAgg.mostChangedFiles(10).foreach({
       case (file, count) => {
-        print(s"File: $file, changed: $count \n")
+        print(s"File: $file, changed: ${count.size} \n")
         print("Top Authors: \n")
         logAgg.topAuthors(file, 3).foreach(e=> print(s"\t $e \n"))
         print("Cochanged files: \n")
         logAgg.coOccuringFiles(file, 5).foreach(e => print(s"\t $e \n"))
       }
-    }) */
+    })
 
     // to reproduce issue #600, replace gitRepoPath in this file to local hyperic/hqapi location
-    val filedetaisl = new JavaRepo(repo.get).files.map(_.fileDetails)
+    // new JavaRepo(repo.get).files.foreach(f => print(f.fileDetails))
   }
 
   def time[T](name: String, block: => T): T = {
@@ -76,43 +77,37 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
   }
 
   test("getting language from repository") {
-    val languages: Set[String] = repo.get.languages
-    assert(languages.size == 3)
-
     val expectedLanguages = Set("md", "java", "xml")
-
-    assert(languages.sameElements(expectedLanguages))
+    repo.get.files.foreach(e =>
+      assert(expectedLanguages.contains(e.extractLang())
+    ))
   }
 
-  test("getting statistics from repository") {
-    val repoStatistics: RepoStatistics = repo.get.statistics
-    assert(repoStatistics.fileCount == 7
-      && repoStatistics.sloc == 463 && repoStatistics.size == 13728)
-  }
+
 
   test("test GithubFileInfo.extractFileName") {
     val files = repo.get.files
-    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java")).next()
     assert(githubFileInfo.extractFileName().equals("CollectLink.java"))
   }
 
   test("test GithubFileInfo.readFileContent") {
     val files = repo.get.files
-    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java")).next()
     assert(githubFileInfo.
       readFileContent.contains("package com.pramati.scraper.google_grp_scraper"))
   }
 
   test("test GithubFileInfo.extractLang") {
     val files = repo.get.files
-    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java")).next()
     assert(githubFileInfo.extractLang.equals("java"))
   }
 
   // scalastyle:off
   test("test GithubFileInfo.repoFileLocation") {
     val files = repo.get.files
-    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java"))(0)
+    val githubFileInfo = files.filter(file => file.filePath.contains("CollectLink.java")).next()
     assert(githubFileInfo.repoFileLocation.
       equals("himukr/google-grp-scraper/blob/master/src/main/java/com/pramati/scraper/google_grp_scraper/CollectLink.java"))
   }
@@ -134,7 +129,7 @@ trait GitHubRepoMockSupport {
         |-C $outputDir""".stripMargin.!!
 
     var gitRepoPath = s"${KodeBeagleConfig.repoCloneDir}/himukr/google-grp-scraper"
-    // gitRepoPath = "/home/sachint/todelete/spark/"
+    // gitRepoPath = "/home/sachint/todelete/spark"
     Option(new MockedGithubRepo().init(new Configuration, gitRepoPath))
   }
 }

@@ -18,7 +18,6 @@
 package com.kodebeagle.spark
 
 import java.io.{File, PrintWriter}
-import java.util.concurrent.atomic.AtomicLong
 
 import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.indexer.{Docs, SourceFile}
@@ -35,11 +34,11 @@ import org.apache.spark.{SerializableWritable, SparkConf}
 
 import scala.sys.process._
 import scala.util.Try
+import com.kodebeagle.logging.LoggerUtils._
 
 object RepoAnalyzerJob extends Logger {
 
   private val language = "Java"
-  val totalExecutorSize: AtomicLong = new AtomicLong(0)
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf()
@@ -119,32 +118,17 @@ object RepoAnalyzerJob extends Logger {
 
     javafileIndicesRDD.foreachPartition((repos: Iterator[JavaRepo]) => {
       val fs = FileSystem.get(confBroadcast.value.value)
-      repos.foreach(handleJavaRepos(fs))
+      repos.foreach(r => time(s"processing ${r.baseRepo.repoInfo.get.fullName}"
+        ,handleJavaRepos(fs)(r)))
     })
   }
 
-  private def checksize(javarepo: JavaRepo): Boolean = {
-    val currTotal = totalExecutorSize.get()
-    val total =  currTotal + javarepo.baseRepo.files.size
-    (total > 25000) && (currTotal > 1000)
-  }
-
   private def handleJavaRepos(fs: FileSystem)(javarepo: JavaRepo) = {
-    import com.kodebeagle.logging.LoggerUtils._
     val login = javarepo.baseRepo.repoInfo.get.login
     val repoName = javarepo.baseRepo.repoInfo.get.name
 
-    while (checksize(javarepo)) {
-      log.sparkInfo(s"Size is ${totalExecutorSize.get}, going to sleep for [$login/$repoName].")
-      Thread.sleep(10000)
-    }
-    totalExecutorSize.getAndAdd(javarepo.baseRepo.files.size)
-    log.sparkInfo(s"Processing repo ${login}/${repoName}, size is ${totalExecutorSize.get}")
-
-    javarepo.files.size < 20000 match {
-      case true => handleJavaRepoFiles(fs, javarepo, login, repoName)
-      case false => log.sparkInfo(s"Repo ${login}/${repoName} has > 20K files, ignoring for now")
-    }
+    log.sparkInfo(s"Starting to process repo ${login}/${repoName}")
+    handleJavaRepoFiles(fs, javarepo, login, repoName)
 
     // write repo details
     val repoDetailsFileName = s"/tmp/kodebeagle-repodetails-$login~$repoName"
@@ -162,12 +146,11 @@ object RepoAnalyzerJob extends Logger {
     val repoCleanCmd = s"rm -rf /tmp/kodebeagle/$login/$repoName"
     repoCleanCmd.!!
 
-    totalExecutorSize.getAndAdd(-javarepo.baseRepo.files.size)
     log.sparkInfo(s"Done processing repo ${login}/${repoName}")
   }
 
   private def handleJavaRepoFiles(fs: FileSystem, javarepo: JavaRepo,
-                             login: String, repoName: String): String = {
+                                  login: String, repoName: String): String = {
     val srchRefFileName = s"/tmp/kodebeagle-srch-$login~$repoName"
     val srcFileName = s"/tmp/kodebeagle-src-$login~$repoName"
     val metaFileName = s"/tmp/kodebeagle-meta-$login~$repoName"
@@ -183,9 +166,6 @@ object RepoAnalyzerJob extends Logger {
     val fileDetailsWriter = new PrintWriter(new File(fileDetailsFileName))
 
     try {
-      if (javarepo.files.isEmpty) {
-        log.info(s"Repo $login/$repoName does not seem to contain anything java.")
-      }
       javarepo.files.foreach(file => {
         val fileLoc = Option(file.repoFileLocation)
         writeIndex("java", "typereference", file.searchableRefs, fileLoc, srchrefWriter)
@@ -194,7 +174,7 @@ object RepoAnalyzerJob extends Logger {
           file.fileContent), fileLoc, srcWriter)
         writeIndex("java", "filedetails", file.fileDetails, fileLoc, fileDetailsWriter)
         writeIndex("java", "documentation",
-          Docs(file.repoFileLocation, file.javaDocs),fileLoc, commentsWriter)
+          Docs(file.repoFileLocation, file.javaDocs), fileLoc, commentsWriter)
         val typesInfoEntry = toJson(file.typesInFile)
         typesInfoWriter.write(typesInfoEntry + "\n")
         // file.free()
@@ -227,5 +207,13 @@ object RepoAnalyzerJob extends Logger {
                            (indxFileName: String, indxName: String) = {
     fs.moveFromLocalFile(new Path(indxFileName),
       new Path(s"${KodeBeagleConfig.repoIndicesHdfsPath}$language/$indxName/$login~$repoName"))
+  }
+
+  private def time[T](task: String, block: => T): T = {
+    val start = System.currentTimeMillis()
+    val result = block
+    val end = System.currentTimeMillis()
+    log.sparkInfo(s"Time taken for: ${task} is ${(end - start)} ms \n")
+    result
   }
 }

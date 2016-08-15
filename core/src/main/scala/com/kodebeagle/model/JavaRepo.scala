@@ -24,7 +24,6 @@ import com.kodebeagle.logging.Logger
 import com.kodebeagle.model.GithubRepo.GithubRepoInfo
 import org.eclipse.jdt.core.dom.CompilationUnit
 
-import scala.collection.mutable
 import scala.util.Try
 
 class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
@@ -32,32 +31,15 @@ class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
 
   // TODO: This constants needs to go somewhere else
   private val JAVA_LANGUAGE = "java"
-  var _files: Option[List[JavaFileInfo]] = None
-  var _statistics: Option[JavaRepoStatistics] = None
 
-  override def files: List[JavaFileInfo] = getOrCompute(_files, () =>{
-    if (languages.contains(JAVA_LANGUAGE)) {
-      _files = Option(baseRepo.files
-        .filter(_.fileName.endsWith(".java"))
-        .map(f => new JavaFileInfo(f, this)))
-    } else {
-      _files = Option(Nil)
-    }
-    _files.get
-  })
+  override def files: Iterator[JavaFileInfo] = baseRepo.files
+    .filter(_.extractLang().equalsIgnoreCase("java")).map(new JavaFileInfo(_, this))
 
-  override def statistics: JavaRepoStatistics = getOrCompute(_statistics, () => {
-    _statistics = Option(new JavaRepoStatistics(files.map(_.fileContent.lines.size).sum,
-      files.size, files.map(_.fileContent.size).sum))
-    _statistics.get
-  })
-
-  override def languages: Set[String] = baseRepo.languages
 
   def summary: JavaRepoSummary = {
     val agg = baseRepo.gitLogAggregation
     JavaRepoSummary(GithubRepo.remote, baseRepo.repoInfo.get,
-      statistics, GitHistory(agg.mostChangedFiles().map(_._1), agg.allCommits.toList))
+      GitHistory(agg.mostChangedFiles().map(_._1), agg.allCommits.map(_.commit).toList))
   }
 }
 
@@ -125,7 +107,7 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
     // TODO: Revisit #600 and explain why it happens
     val agg = repo.baseRepo.gitLogAggregation
     val file = baseFile.filePath
-    val commitCount = agg.fileCommitCount.getOrElse(file, mutable.ListBuffer.empty).toList
+    val commitCount = agg.fileCommmitCount(file)
     val topAuthors = agg.topAuthors(file, 5).map(_._1)
     val cooccuring = agg.coOccuringFiles(file, 10).map(_._1)
     FileDetails(repoFileLocation, commitCount, topAuthors, cooccuring)
@@ -182,8 +164,8 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
       log.error(s"Compilation unit is null for $fileName")
       _imports = _emptyImports
       _searchableRefs = emptySearchableRefs(repoFileLocation)
-      _fileMetaData = emptyFileMetadata(repoId,repoFileLocation)
-      _typesInFile = emptyTypesInFile(repoPath,repoFileLocation)
+      _fileMetaData = emptyFileMetadata(repoId, repoFileLocation)
+      _typesInFile = emptyTypesInFile(repoPath, repoFileLocation)
       _javaDoc = _emptyJavaDocs
 
     } else {
@@ -203,14 +185,14 @@ class JavaFileInfo(baseFile: GithubFileInfo, repo: JavaRepo) extends FileInfo
       _typesInFile = Option(TypesInFile(repoPath, repoFileLocation,
         TypesInFileIndexHelper.usedTypesInFile(scbr),
         TypesInFileIndexHelper.declaredTypesInFile(scbr)))
-      _javaDoc = Option(JavaDocIndexHelper.generateJavaDocs(repoId,repoFileLocation,scbr))
+      _javaDoc = Option(JavaDocIndexHelper.generateJavaDocs(repoId, repoFileLocation, scbr))
     }
 
   }
 }
 
-case class JavaRepoSummary(remote: String, gitHubInfo: GithubRepoInfo, stats: JavaRepoStatistics,
-                           gitHistory: GitHistory)
+case class JavaRepoSummary(remote: String, gitHubInfo: GithubRepoInfo, gitHistory: GitHistory)
+
 case class GitHistory(mostChanged: List[String], commits: List[Commit])
 
 case class FileDetails(file: String, commits: List[Commit], topAuthors: List[String],
@@ -228,8 +210,8 @@ object JavaFileInfo {
   val _emptyInternalRefList = List.empty[InternalRef]
   val _emptyMethodTypeLocList = List.empty[MethodTypeLocation]
   val _emptyMethodDefLocList = List.empty[MethodDefinition]
-  val _emptyDeclaredTypeMap = Map.empty[String,Set[MethodType]]
-  val _emptyUsedTypesMap = Map.empty[String,(Set[String],Set[MethodType])]
+  val _emptyDeclaredTypeMap = Map.empty[String, Set[MethodType]]
+  val _emptyUsedTypesMap = Map.empty[String, (Set[String], Set[MethodType])]
   val _emptyImports: Option[Set[String]] = Option(Set.empty)
   val _emptySuperTypes = SuperTypes(Map.empty, Map.empty)
   val _emptyJavaDocs: Option[Set[TypeDocsIndices]] = Option(Set.empty)
@@ -239,11 +221,11 @@ object JavaFileInfo {
       0L, repoFileLocation), 0L, repoFileLocation))
 
   def emptyFileMetadata(repoId: Long, repoFileLocation: String): Option[FileMetaData] =
-    Option(FileMetaData(repoId, repoFileLocation, _emptySuperTypes,_emptyTypeDeclarationList,
+    Option(FileMetaData(repoId, repoFileLocation, _emptySuperTypes, _emptyTypeDeclarationList,
       _emptyExtRefList, _emptyMethodDefLocList, _emptyInternalRefList))
 
   def emptyTypesInFile(repoPath: String, repoFileLocation: String): Option[TypesInFile] =
-    Option(TypesInFile(repoPath, repoFileLocation,_emptyUsedTypesMap, _emptyDeclaredTypeMap))
+    Option(TypesInFile(repoPath, repoFileLocation, _emptyUsedTypesMap, _emptyDeclaredTypeMap))
 
 }
 

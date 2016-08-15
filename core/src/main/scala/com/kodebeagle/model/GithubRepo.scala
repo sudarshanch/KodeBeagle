@@ -48,13 +48,10 @@ class GithubRepo protected()
   extends Repo with Logger with LazyLoadSupport {
 
   // TODO: I don't see much use now for this given how we are using it. Clean.
-  private var _files: Option[List[GithubFileInfo]] = None
-  private var _stats: Option[RepoStatistics] = None
-  private var _languages: Option[Set[String]] = None
   private var _repository: Option[Repository] = None
   protected var _repoGitFile: Option[String] = None
-  protected var _gitLogAggregation: Option[GitLogAggregation] = None
   var repoInfo: Option[GithubRepoInfo] = None
+  var _gitLogAggregation: Option[GitLogAggregation] = None
 
 
   // init()
@@ -72,26 +69,7 @@ class GithubRepo protected()
     }
   }
 
-  override def files: List[GithubFileInfo] = {
-    getOrCompute(_files, () => {
-      readProject()
-      _files.get
-    })
-  }
-
-  override def statistics: RepoStatistics = {
-    getOrCompute(_stats, () => {
-      _stats = Option(calculateStats(files))
-      _stats.get
-    })
-  }
-
-  override def languages: Set[String] = {
-    getOrCompute(_languages, () => {
-      _languages = Option(extractLanguages(files))
-      _languages.get
-    })
-  }
+  override def files: Iterator[GithubFileInfo] = new FileIterator(repository, repoInfo.get)
 
   def repository: Repository = {
     getOrCompute(_repository, () => {
@@ -103,12 +81,10 @@ class GithubRepo protected()
     })
   }
 
-  def gitLogAggregation: GitLogAggregation = {
-    getOrCompute(_gitLogAggregation, () => {
-      readProject()
-      _gitLogAggregation.get
-    })
-  }
+  def gitLogAggregation: GitLogAggregation = getOrCompute(_gitLogAggregation, () => {
+    _gitLogAggregation = Option(analyzeHistory())
+    _gitLogAggregation.get
+  })
 
   def calculateStats(files: List[GithubFileInfo]): RepoStatistics = {
     var slocSum: Int = 0
@@ -148,78 +124,83 @@ class GithubRepo protected()
           |'{"authorName": "%an", "authorEmail": "%aE",
           |"time": "%at", "msg":"%aE"}' """.stripMargin.replaceAll("\n", "")
 
-    val histAggregator = new GitLogAggregation()
+    val histAggregator = new GitLogAggregation(repoInfo.get)
     val cmdFrmDir = bashCmdsFromDir(_repoGitFile.get, Seq(s"cd ${_repoGitFile.get}", gitLogCommand))
     cmdFrmDir.!(ProcessLogger(line => histAggregator.merge(line)))
     histAggregator
   }
 
-  private def readProject() = {
-    _gitLogAggregation = Option(analyzeHistory())
+}
+
+class FileIterator(repository: Repository, repoInfo: GithubRepoInfo)
+  extends Iterator[GithubFileInfo] with Logger {
+
+  val treeWalkMaybe = Try {
     val git = new Git(repository)
+    // a RevWalk allows to walk over commits based on some filtering that is
+    // defined
+    val revWalk: RevWalk = new RevWalk(repository)
+    // find the HEAD
+    val headCommitId = repository.resolve(Constants.HEAD)
+    val headTree: RevTree = revWalk.parseCommit(headCommitId).getTree
+    revWalk.markStart(revWalk.lookupCommit(headCommitId))
+    // Now use a TreeWalk to iterate over all files in the Tree recursively
+    // We can set Filters to narrow down the results if needed
+    val treeWalk: TreeWalk = new TreeWalk(repository)
+    treeWalk.addTree(headTree)
+    treeWalk.setRecursive(true)
+    treeWalk
+  }
 
-    val gitHubFilesInfo: mutable.ListBuffer[GithubFileInfo] =
-    mutable.ListBuffer[GithubFileInfo]()
-
-    val fileListOpt = Try {
-
-      // a RevWalk allows to walk over commits based on some filtering that is
-      // defined
-      val revWalk: RevWalk = new RevWalk(repository)
-
-      // find the HEAD
-      val headCommitId = repository.resolve(Constants.HEAD)
-      val headTree: RevTree = revWalk.parseCommit(headCommitId).getTree
-      revWalk.markStart(revWalk.lookupCommit(headCommitId))
-
-
-      // Now use a TreeWalk to iterate over all files in the Tree recursively
-      // We can set Filters to narrow down the results if needed
-      val treeWalk: TreeWalk = new TreeWalk(repository)
-      treeWalk.addTree(headTree)
-      treeWalk.setRecursive(true)
-      while (treeWalk.next) {
-        val githubFileInfo = new GithubFileInfo(treeWalk.getPathString,
-          treeWalk.getObjectId(0), repository, repoInfo.get)
-        gitHubFilesInfo.append(githubFileInfo)
-      }
-      gitHubFilesInfo.toList
-    }
-
-    fileListOpt match {
-      case Success(list: List[GithubFileInfo]) => _files = Option(list)
-      case Failure(e: Throwable) => {
-        log.warn(
-          s"""Unable to read file list from repo ${repoInfo};
-              | empty file list will be returned.
-              | (This is possibly due to repo clone being empty)""".stripMargin,
-          e)
-        _files = Option(List.empty)
-      }
+  val treeWalkOpt = treeWalkMaybe match {
+    case Success(treeWalk) => Option(treeWalk)
+    case Failure(e: Throwable) => {
+      log.warn(
+        s"""Unable to read file list from repo ${repoInfo};
+            | empty file list will be returned.
+            | (This is possibly due to repo clone being empty)""".stripMargin,
+        e)
+      None
     }
   }
 
+  // This call advances the iterator to next element on every invocation
+  override def hasNext: Boolean = {
+    treeWalkOpt match {
+      case None => false
+      case Some(treeWalk) => treeWalk.next
+    }
+
+  }
+
+  override def next(): GithubFileInfo = {
+    treeWalkOpt match {
+      case None => throw new IllegalStateException("next() called on non available iterator.")
+      case Some(treeWalk) => new GithubFileInfo(treeWalk.getPathString,
+        treeWalk.getObjectId(0), repository, repoInfo)
+    }
+
+  }
 }
 
-class GitLogAggregation() extends Logger {
+class GitLogAggregation(repoInfo: GithubRepoInfo) extends Logger {
 
   import org.json4s.jackson.Serialization.read
 
   implicit val formats = org.json4s.DefaultFormats
-  // map of each file vs file counts of other files changed in one commit
-  val adjacencyMap = mutable.Map.empty[String, mutable.Map[String, Int]]
   // List of all commits
-  val allCommits = mutable.ListBuffer.empty[Commit]
-  // per file authors change count (commit, added lines, deleted lines)
-  val fileAuthors = mutable.Map.empty[String, mutable.Map[String, (Int, Int, Int)]]
+  val allCommits = mutable.ListBuffer.empty[CommitWithFiles]
   // The current commit context in which to parse the subsequent file names
-  var currentCommit: Option[Commit] = None
-  var filesInCurrentCommit: mutable.Set[String] = mutable.Set.empty[String]
-  val fileCommitCount: mutable.Map[String, mutable.ListBuffer[Commit]] = mutable.Map.empty
+  private var currentCommit: Option[Commit] = None
+  private var filesInCurrentCommit: mutable.Set[(String, Int, Int)] =
+    mutable.Set.empty[(String, Int, Int)]
 
   private def handleCommit(commitStr: String) = {
+    currentCommit match {
+      case Some(c) => allCommits.add(CommitWithFiles(c, filesInCurrentCommit.toSet))
+      case None => // ignore (on first commit)
+    }
     currentCommit = Option(read[Commit](commitStr.replace("\\", "\\\\")))
-    allCommits.add(currentCommit.get)
     // start with empty set on encountering a new commit
     filesInCurrentCommit = mutable.Set.empty
   }
@@ -231,31 +212,7 @@ class GitLogAggregation() extends Logger {
       case true => {
         val splits = fileRecord.split("\\t")
         val (file, add, del) = (splits(2), splits(0), splits(1))
-        // update commit count for this file
-        val existingCommits = fileCommitCount.getOrElse(file, mutable.ListBuffer.empty)
-        existingCommits.add(currentCommit.get)
-        fileCommitCount.update(file, existingCommits)
-
-        // update author counts
-        val authorCount = fileAuthors.getOrElseUpdate(file, mutable.Map.empty)
-        val existing = authorCount.getOrElse(currentCommit.get.authorEmail, (0, 0, 0))
-        authorCount.update(currentCommit.get.authorEmail,
-          (existing._1 + 1,
-            existing._2 + Try(add.toInt).getOrElse(0), existing._3 + Try(del.toInt).getOrElse(0)))
-
-        // update adjacency map for all files in current commit upon seeing this file
-        filesInCurrentCommit.foreach(p => {
-          val adjcencyCount = adjacencyMap.getOrElseUpdate(p, mutable.Map.empty)
-          adjcencyCount.update(file, adjcencyCount.getOrElse(file, 0) + 1)
-        })
-
-        // also update the adjacency map for this file wrt to earlier seen files
-        val currentFileAdjcencyCount = adjacencyMap.getOrElseUpdate(file, mutable.Map.empty)
-        filesInCurrentCommit.foreach(p => {
-          currentFileAdjcencyCount.update(p, currentFileAdjcencyCount.getOrElse(p, 0) + 1)
-        })
-
-        filesInCurrentCommit.add(file)
+        filesInCurrentCommit.add((file, Try(add.toInt).getOrElse(0), Try(del.toInt).getOrElse(0)))
       }
     }
 
@@ -271,12 +228,27 @@ class GitLogAggregation() extends Logger {
         }
       }
     } catch {
-      case e: Exception => log.error(s"Unable to read log line: ${line}", e)
+      case e: Exception => log.error(s"Unable to read log line: ${line} in ${repoInfo.fullName}"
+        , e)
     }
   }
 
   def mostChangedFiles(n: Int = 0): List[(String, mutable.ListBuffer[Commit])] = {
-    val sortedFiles = fileCommitCount.toList.sortBy(-_._2.size)
+    val countAgg = allCommits.flatMap(cwf => cwf.files.map(f => (f, cwf.commit)))
+      .aggregate(mutable.Map.empty[String, mutable.ListBuffer[Commit]])(
+        (agg, file) => {
+          val existingSet = agg.getOrElseUpdate(file._1._1, mutable.ListBuffer.empty[Commit])
+          existingSet.add(file._2)
+          agg
+        },
+        (agg1, agg2) => {
+          agg2.foreach(file => {
+            val existingSet = agg1.getOrElseUpdate(file._1, mutable.ListBuffer.empty[Commit])
+            existingSet ++= file._2
+          })
+          agg1
+        })
+    val sortedFiles = countAgg.toList.sortBy(-_._2.size)
     n > 0 match {
       case true => sortedFiles.take(n)
       case false => sortedFiles
@@ -284,15 +256,16 @@ class GitLogAggregation() extends Logger {
   }
 
   def coOccuringFiles(fileName: String, n: Int = 0): List[(String, Int)] = {
-    adjacencyMap.get(fileName) match {
-      case Some(m) => {
-        val sorted = m.toList.sortBy(-_._2)
-        n > 0 match {
-          case true => sorted.take(n)
-          case false => sorted
-        }
-      }
-      case None => List.empty
+    val cooccurMap = allCommits.filter(_.files.map(_._1).contains(fileName)).flatMap(_.files)
+      .filter(!_._1.equals(fileName)).foldLeft(mutable.Map.empty[String, Int])((agg, file) => {
+      agg.update(file._1, agg.getOrElse(file._1, 0) + 1)
+      agg
+    })
+
+    val sorted = cooccurMap.toList.sortBy(-_._2)
+    n > 0 match {
+      case true => sorted.take(n)
+      case false => sorted
     }
   }
 
@@ -302,22 +275,32 @@ class GitLogAggregation() extends Logger {
       // no high funda, just gut feel
       commit + 2 * Math.log(addedLines) + Math.log(deletedLines)
     }
-    fileAuthors.get(fileName) match {
-      case Some(authorCount) => {
-        val sorted = authorCount.toList
-          .sortBy(e => -authorRelevanceScore(e._2._1, e._2._2, e._2._3))
-        n > 0 match {
-          case true => sorted.take(n)
-          case false => sorted
-        }
-      }
-      case None => List.empty
+    val authCount = allCommits.filter(_.files.map(_._1).contains(fileName))
+      .flatMap(cwf => cwf.files.map((_, cwf.commit.authorEmail))).filter(_._1._1.equals(fileName))
+      .foldLeft(mutable.Map.empty[String, (Int, Int, Int)])((agg, fileInfo) => {
+        val existing = agg.getOrElse(fileInfo._2, (0, 0, 0))
+        agg.update(fileInfo._2,
+          // update existing value for author with new count, added lines, deleted lines
+          (existing._1 + 1, existing._2 + fileInfo._1._2, existing._3 + fileInfo._1._3))
+        agg
+      })
+
+    val sorted = authCount.toList.sortBy(e => -authorRelevanceScore(e._2._1, e._2._2, e._2._3))
+    n > 0 match {
+      case true => sorted.take(n)
+      case false => sorted
     }
+  }
+
+  def fileCommmitCount(fileName: String): List[Commit] = {
+    allCommits.filter(_.files.map(_._1).contains(fileName)).map(_.commit).toList
   }
 
 }
 
 case class Commit(time: String, authorName: String, authorEmail: String, msg: String)
+
+case class CommitWithFiles(commit: Commit, files: Set[(String, Int, Int)] = Set.empty)
 
 object GithubRepo {
 
@@ -350,7 +333,7 @@ class GithubFileInfo(filePath: String, objectId: ObjectId, repository: Repositor
   override def extractLang(): String = {
     val fileType: Array[String] = filePath.split("\\.")
     if (fileType.length > 1) {
-      fileType(1)
+      fileType(fileType.length - 1)
     } else {
       UNKNOWN_LANG
     }

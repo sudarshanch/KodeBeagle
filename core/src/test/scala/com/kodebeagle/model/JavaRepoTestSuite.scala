@@ -36,39 +36,24 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
     // Java file count
     assert(testJavaRepo.get.files.size == 5)
   }
-  // Total file count
-  // assert(testJavaRepo.get.statistics.fileCount == 7)
 
-  test("Languages check") {
-    // Check for number of languages
-    assert(testJavaRepo.get.languages.size == 3)
-    // Check for Java language
-    assert(testJavaRepo.get.languages.contains("java"))
-  }
-
-  test("Statistics Check") {
-    val repoStatistics: JavaRepoStatistics = testJavaRepo.get.statistics
-    assert(repoStatistics.fileCount == 5)
-    assert(repoStatistics.size == 11727)
-    assert(repoStatistics.sloc == 397)
-  }
 
   test("JavaFileInfo.isTestFile check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java")).head
+      file => file.fileName.equals("CollectLink.java")).next()
     assert(!javaFileInfo.isTestFile())
   }
 
   test("JavaFileInfo.imports check") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java")).head
+      file => file.fileName.equals("CollectLink.java")).next()
     assert(javaFileInfo.imports.size == 15)
   }
 
   // scalastyle:off
   test("JavaFileInfo.fileMetaData check") {
     val file = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("CollectLink.java")).head
+      file => file.fileName.equals("CollectLink.java")).next()
 
     val fileMetaData = file.fileMetaData
     // Intention is to check whether fileMetaData presents.
@@ -105,7 +90,7 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
 
   test("JavaFileInfo.searchableRefs check for same package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("ScraperStartup.java")).head
+      file => file.fileName.equals("ScraperStartup.java")).next()
 
     val searchableRefs = javaFileInfo.searchableRefs
     val externalRef = searchableRefs.contexts.head
@@ -122,7 +107,7 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
 
   test("JavaFileInfo.searchableRefs check for java.lang package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("ScraperStartup.java")).head
+      file => file.fileName.equals("ScraperStartup.java")).next()
     val searchableRefs = javaFileInfo.searchableRefs
     val context = searchableRefs.contexts.head;
     // Number of methods
@@ -136,7 +121,7 @@ class JavaRepoTestSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoM
 
   test("JavaFileInfo.searchableRefs check for external package Refs") {
     val javaFileInfo = testJavaRepo.get.files.filter(
-      file => file.fileName.equals("ScraperStartup.java"))(0)
+      file => file.fileName.equals("ScraperStartup.java")).next()
     val searchableRefs = javaFileInfo.searchableRefs
     val context = searchableRefs.contexts.head
     // Number of methods
