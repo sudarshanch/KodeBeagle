@@ -20,6 +20,8 @@ package com.kodebeagle.model
 import java.io.File
 
 import com.kodebeagle.configuration.KodeBeagleConfig
+import com.kodebeagle.util.SparkIndexJobHelper
+import com.kodebeagle.util.SparkIndexJobHelper._
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.eclipse.jgit.api.Git
@@ -63,6 +65,11 @@ class GithubRepoSuite extends FunSuite with BeforeAndAfterAll with GitHubRepoMoc
         logAgg.coOccuringFiles(file, 5).foreach(e => print(s"\t $e \n"))
       }
     })
+
+    val agg = logAgg
+    val sum = JavaRepoSummary(GithubRepo.remote, repo.get.repoInfo.get,
+      GitHistory(agg.mostChangedFiles(3).map(_._1), agg.allCommits.map(_.commit).toList))
+    print(SparkIndexJobHelper.toIndexTypeJson("i", "t", sum, Option("1")))
 
     // to reproduce issue #600, replace gitRepoPath in this file to local hyperic/hqapi location
     // new JavaRepo(repo.get).files.foreach(f => print(f.fileDetails))

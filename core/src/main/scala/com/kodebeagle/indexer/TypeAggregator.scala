@@ -151,6 +151,11 @@ class TypeAggregator() extends Serializable {
     score > 0
   }
 
+  def randomString(): String = {
+    val r = scala.util.Random
+    r.nextInt(10000).toString
+  }
+
   def result(typeName: String): TypeAggregation = {
     val tokens = typeName.split("\\.")
 
@@ -164,7 +169,9 @@ class TypeAggregator() extends Serializable {
 
     TypeAggregation(typeName, score,
       context = tokens.slice(0, tokens.length - 1).toSet,
-      typeSuggest = CompletionSuggest(camelCasePattern.split(typeName).toSet, typeName, score),
+      typeSuggest = CompletionSuggest(
+        camelCasePattern.split(typeName).toSet[String].map(e => s"$e$randomString") + typeName,
+        typeName, score),
       methodSuggest = PayloadCompletionSuggest(
         methods.map(_.methodName).toSet, score,
         // Coz: https://issues.scala-lang.org/browse/SI-6476

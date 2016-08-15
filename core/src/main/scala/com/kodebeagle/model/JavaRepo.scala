@@ -39,7 +39,7 @@ class JavaRepo(val baseRepo: GithubRepo) extends Repo with Logger
   def summary: JavaRepoSummary = {
     val agg = baseRepo.gitLogAggregation
     JavaRepoSummary(GithubRepo.remote, baseRepo.repoInfo.get,
-      GitHistory(agg.mostChangedFiles().map(_._1), agg.allCommits.map(_.commit).toList))
+      GitHistory(agg.mostChangedFiles(10).map(_._1), agg.allCommits.map(_.commit).toList))
   }
 }
 

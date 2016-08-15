@@ -122,7 +122,7 @@ class GithubRepo protected()
     val gitLogCommand =
       s"""git log --numstat --format=format:
           |'{"authorName": "%an", "authorEmail": "%aE",
-          |"time": "%at", "msg":"%aE"}' """.stripMargin.replaceAll("\n", "")
+          |"time": "%at", "msg":"%f"}' """.stripMargin.replaceAll("\n", "")
 
     val histAggregator = new GitLogAggregation(repoInfo.get)
     val cmdFrmDir = bashCmdsFromDir(_repoGitFile.get, Seq(s"cd ${_repoGitFile.get}", gitLogCommand))

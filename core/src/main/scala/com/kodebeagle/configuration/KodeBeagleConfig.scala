@@ -63,6 +63,9 @@ object KodeBeagleConfig extends ConfigReader {
   private[kodebeagle] val repoMetaDataHdfsPath: String = get("kodebeagle.hdfs.repo.meta.path").get
   private[kodebeagle] val typesInfoLocation: String = get("kodebeagle.hdfs.repo.typesinfo.path").get
 
+  private[kodebeagle] val repoIndicesBackupPath: String =
+    get("kodebeagle.hdfs.indices.backup.path").get
+
   def nextToken(arr: Array[String] = githubTokens): String = {
     if (lastIndex == arr.length - 1) {
       lastIndex = 0
