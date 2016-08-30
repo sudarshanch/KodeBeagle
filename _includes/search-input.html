@@ -26,7 +26,7 @@
                            ng-model="model.searchText"
                            ng-keyup="handleSearchText( $event )"
                            ng-focusout="searchTextFocusout()"
-                           placeholder="Search here Eg: FileChannel, MappedByteBuffer"
+                           placeholder="Search here Eg: Read File"
                            autocomplete="off"/>
                     <span class="more" ng-click="moreTerms=true;" ng-show="model.selectedTexts.length > typesLimit">+<span ng-bind="model.selectedTexts.length-typesLimit"></span></span>
                     <textarea name="searchText" ng-if="model.isCode" ng-model="model.searchCode" id="searchCode"></textarea>

@@ -78,6 +78,11 @@
                     path = filePath[0]+'/../'+filePath[filePath.length-1];
                   }
                   coChange.fileName = path;
+                  if (eachChange.split('/') && eachChange.split('/').length > 0) {
+                    var arrPath = fileName.split(eachChange.split('/')[0]);
+                    if (arrPath && arrPath.length > 0)
+                      eachChange = arrPath[0] + eachChange;
+                  }
                   coChange.filePath = eachChange;
                   changes.push(coChange);
                 });
