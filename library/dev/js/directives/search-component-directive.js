@@ -44,8 +44,7 @@ $(document).bind( 'keydown', function( e ) {
           $scope.typesLimit = 4;
           model.selectedTexts = model.selectedTexts || [];
           var liSelected,
-              next,
-              selected;
+              next;
 
           $scope.handleSelectedText = function(e, i) {
 
@@ -80,7 +79,8 @@ $(document).bind( 'keydown', function( e ) {
 
           $scope.formSubmit = function(forceSubmit) {
             //$scope.showRequiredMsg = false;
-            var selectedItem = $('.type-ahead-wrapper > ul > li').filter('.type-ahead-wrapper-background').text(),
+            var liEle = $('.type-ahead-wrapper > ul > li');
+            var selectedItem = liEle.filter('.type-ahead-wrapper-background').text(),
                 type;
             if (selectedItem) {
               type = {
@@ -91,7 +91,7 @@ $(document).bind( 'keydown', function( e ) {
               model.searchText = '';
               $scope.searchText = '';
               $scope.isOpen = false;
-              $('.type-ahead-wrapper > ul > li').removeClass('type-ahead-wrapper-background');
+              addOrRemoveClass(liEle, "remove");
               liSelected = "";
             } else {
               if( !model.isCode) {
@@ -159,9 +159,32 @@ $(document).bind( 'keydown', function( e ) {
 
           }
 
+          /**
+           * Defaults to remove class if caller doesn't provide 'type'
+           * @param ele
+           * @param type
+           */
+          function addOrRemoveClass(ele, type) {
+            if (type == "add") {
+              ele.addClass('type-ahead-wrapper-background');
+            } else {
+              ele.removeClass('type-ahead-wrapper-background');
+            }
+            return ele;
+          }
+
+          $(".type-ahead-wrapper > ul").on('hover', 'li', function (){
+            var ele = $('.type-ahead-wrapper > ul > li');
+            if( ele.filter('.type-ahead-wrapper-background').length) {
+              debugger;
+              addOrRemoveClass(ele, "remove");
+              liSelected = "";
+            }
+          });
+
           $scope.handleSearchText = function(e) {
-            var type = {};
-            var li = $('.type-ahead-wrapper > ul > li');
+            var type = {},
+                li = $('.type-ahead-wrapper > ul > li');
 
             // $('.type-ahead-wrapper').scrollTop(li.filter('.type-ahead-wrapper-background').offset().top - $('.type-ahead-wrapper').height() + 100)
             /*on press of tab( 9 keycode ) and if model.searchText present the create a new search term*/
@@ -195,31 +218,26 @@ $(document).bind( 'keydown', function( e ) {
             if (model.searchText && e.keyCode == 40) {
               if (liSelected) {
                 next = liSelected.next();
-                liSelected.removeClass('type-ahead-wrapper-background');
-
+                addOrRemoveClass(liSelected, "remove");
                 if(next.length > 0){
-                  liSelected = next.addClass('type-ahead-wrapper-background');
-                  selected = next.text();
-
+                  liSelected = addOrRemoveClass(next, "add");
                 } else{
-                  liSelected = li.eq(0).addClass('type-ahead-wrapper-background');
-                  selected = li.eq(0).text();
+                  liSelected = addOrRemoveClass(li.eq(0), "add");
                 }
               } else {
-                liSelected = li.eq(0).addClass('type-ahead-wrapper-background');
-                selected = li.eq(0).text();
+                liSelected = addOrRemoveClass(li.eq(0), "add");
               }
             } else if (model.searchText && e.keyCode == 38) {
-              if (liSelected){
-                liSelected.removeClass('type-ahead-wrapper-background');
+              if (liSelected) {
+                addOrRemoveClass(liSelected, "remove");
                 next = liSelected.prev();
                 if (next.length > 0){
-                  liSelected = next.addClass('type-ahead-wrapper-background');
+                  liSelected = addOrRemoveClass(next, "add");
                 } else{
-                  liSelected = li.last().addClass('type-ahead-wrapper-background');
+                  liSelected = addOrRemoveClass(li.last(), "add");
                 }
               } else{
-                liSelected = li.last().addClass('type-ahead-wrapper-background');
+                liSelected = addOrRemoveClass(li.last(), "add");
               }
             }
 

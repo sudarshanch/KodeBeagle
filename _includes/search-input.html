@@ -51,15 +51,15 @@
                 </div>
             </div>
 
-            <div class="type-ahead-wrapper" drop-down-close
-             ng-show="isOpen" ng-blur=isOpen=false;>
+            <div class="type-ahead-wrapper"
+                 drop-down-close
+                 ng-show="isOpen"
+                 ng-blur=isOpen=false;>
               <!-- <span class="close" ng-click="isOpen=false;">x</span> -->
               <ul class="">
                 <li ng-repeat="searchType in searchTypes track by $index"
-                  ng-mouseenter="selectActive($index)"
-                  ng-click="selectMatch($index)">
-                  <span ng-bind-html="searchType.htmlTerm">
-                  </span>
+                    ng-click="selectMatch($index)">
+                        <span ng-bind-html="searchType.htmlTerm"></span>
                 </li>
               </ul>
           </div>
