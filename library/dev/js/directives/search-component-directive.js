@@ -173,15 +173,6 @@ $(document).bind( 'keydown', function( e ) {
             return ele;
           }
 
-          $(".type-ahead-wrapper > ul").on('hover', 'li', function (){
-            var ele = $('.type-ahead-wrapper > ul > li');
-            if( ele.filter('.type-ahead-wrapper-background').length) {
-              debugger;
-              addOrRemoveClass(ele, "remove");
-              liSelected = "";
-            }
-          });
-
           $scope.handleSearchText = function(e) {
             var type = {},
                 li = $('.type-ahead-wrapper > ul > li');
