@@ -27,9 +27,11 @@
         }
       };
 
-      $scope.relatedTypeOnClick = function(relatedType) {
+      $scope.relatedTypeOnClick = function(event) {
+          event.preventDefault();
+          var relatedType = event.currentTarget.getAttribute("value");
           var reqObj = { term: relatedType, type: "type" };
-          selectedTexts.push(reqObj);
+          model.selectedTexts.push(reqObj);
       }
 
       $scope.goToTop = function(snipp, line) {

@@ -7,8 +7,8 @@
         <span>
           <strong>Frequently used with:</strong>
           {% raw %}
-          <a href="" ng-repeat-start = "relatedType in model.relatedTypes" 
-          ng-click = "relatedTypeOnClick(relatedType)" value = "{{relatedType}}">
+          <a style="cursor: pointer;"  ng-repeat-start = "relatedType in model.relatedTypes"
+          ng-click = "relatedTypeOnClick($event)" value = "{{relatedType}}">
           {{relatedType}}{% endraw %}</a>
           <span ng-repeat-end="">
           </span>
