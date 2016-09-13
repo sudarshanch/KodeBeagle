@@ -14,7 +14,7 @@
           </strong>
           <!-- out of <strong>{{model.totalFiles}}</strong> files -->
           <span ng-if="model.totalHitCount !== model.hitCount">
-          ( total matches <strong>{{model.totalHitCount}}</strong>  )
+          ( total matches <strong>{{model.totalHitCount}}</strong> in <strong>{{model.searchTime}}</strong> seconds  )
           </span>
 
           <div style="margin-left: 20px; display: inline-block" class="pull-right">
@@ -39,16 +39,16 @@
                 <div class="panel panel-default editor">
                   <div class="panel-heading"  ng-dblclick="fullExpandView( $event, item, $index )">
                     <div class="pull-left">
-                      <span ng-click="toggleExpand( $event, $index, item );" 
+                      <span ng-click="toggleExpand( $event, $index, item );"
                             class="fa fa-expand" ng-class=
                           "{'fa-compress':item.collapsed}">
                       </span>
-                      <a ng-href="./../explorerepo?filename={{item.fileInfo.path}}" 
-                          target="_self" tooltip-placement="right" tooltip="Explore">    
+                      <a ng-href="./../explorerepo?filename={{item.fileInfo.path}}"
+                          target="_self" tooltip-placement="right" tooltip="Explore">
                           {{item.fileInfo.repo}}</a>
                       /
-                      <a ng-href="./../explore?filename={{item.fileInfo.path}}" 
-                          target="_self" tooltip-placement="right" tooltip="Explore">    
+                      <a ng-href="./../explore?filename={{item.fileInfo.path}}"
+                          target="_self" tooltip-placement="right" tooltip="Explore">
                           {{item.fileInfo.name}}</a>
                     </div>
                     <div class="pull-right" >
@@ -105,7 +105,7 @@
         <div ng-if="model.filterNotFound">
             <p>Could not find any match for filter  </p>
         </div>
-        <div class="loader-container" 
+        <div class="loader-container"
               ng-if="(model.editors && model.editors.length === 0 && !model.filterNotFound)">
             <div class="loader"></div>
         </div>

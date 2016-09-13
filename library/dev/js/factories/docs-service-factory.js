@@ -7,7 +7,12 @@
       http,model,$http, $interval
     ) {
 
-      var settings, editors = [], editorIndex = 0, editorInterval;
+      var settings,
+          editors = [],
+          editorIndex = 0,
+          editorInterval,
+          startTime,
+          endTime;
 
       function restructureData(hits){
           var hitsData = angular.copy(hits);
@@ -326,12 +331,14 @@
         model.editors = [], editors = [];
         model.emptyResponse = false;
         model.filterNotFound = false;
+        startTime = new Date().getTime();
 
         $http.get(settings.esURL + '/search?query='+searchRequest)
         .then(searchResultHandler , searchErrorHandler);
       }
 
       function searchResultHandler(result) {
+        endTime = new Date().getTime();
         if (result && result.data && result.data.hits.length === 0) {
           model.emptyResponse = true;
           return;
@@ -340,6 +347,7 @@
         model.totalFiles = result.data.total_hits;
         model.totalHitCount = result.data.total_hits;
         model.relatedTypes = result.data.related_types;
+        model.searchTime = ((endTime - startTime)/1000).toFixed(2);
         var linesObj, imports = {};
 
         result.data.hits.forEach(function(eachFile){
